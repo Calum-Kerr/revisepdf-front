@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useTranslation } from 'react-i18next';
-import { DocumentIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { DocumentIcon, XMarkIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '@/contexts/AuthContext';
+import { SubscriptionTier, getFileSizeLimit } from '@/lib/supabase/client';
+import toast from 'react-hot-toast';
 
 interface FileUploadProps {
   onFilesAccepted: (files: File[]) => void;
@@ -12,6 +15,7 @@ interface FileUploadProps {
   accept?: Record<string, string[]>;
   multiple?: boolean;
   toolType?: 'compress' | 'merge' | 'split' | 'convert';
+  onFileSizeError?: (message: string) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -21,16 +25,118 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   accept = { 'application/pdf': ['.pdf'] },
   multiple = false,
   toolType = 'compress',
+  onFileSizeError,
 }) => {
   const { t } = useTranslation();
+  const { user, profile, isLoading } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
+  const [subscriptionLimit, setSubscriptionLimit] = useState<number>(maxSize);
+  const [remainingStorage, setRemainingStorage] = useState<number>(maxSize);
+  const [showLimitInfo, setShowLimitInfo] = useState<boolean>(false);
+
+  // Get subscription limits based on user profile
+  useEffect(() => {
+    if (profile) {
+      const tierLimit = profile.file_size_limit;
+      const usedStorage = profile.usage;
+      const totalStorage = profile.file_size_limit;
+      const remaining = Math.max(0, totalStorage - usedStorage);
+
+      setSubscriptionLimit(tierLimit);
+      setRemainingStorage(remaining);
+
+      // Update maxSize based on subscription if it's higher than the subscription limit
+      if (tierLimit < maxSize) {
+        console.log(`Adjusting max file size from ${maxSize} to ${tierLimit} based on subscription`);
+      }
+    }
+  }, [profile, maxSize]);
+
+  // Format file size for display
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      setFiles(acceptedFiles);
-      onFilesAccepted(acceptedFiles);
+    (acceptedFiles: File[], rejectedFiles: any[]) => {
+      // Handle rejected files (too large, wrong type, etc.)
+      if (rejectedFiles.length > 0) {
+        const fileSizeErrors = rejectedFiles.filter(file =>
+          file.errors.some((err: any) => err.code === 'file-too-large')
+        );
+
+        if (fileSizeErrors.length > 0) {
+          const file = fileSizeErrors[0].file;
+          const fileSize = file.size;
+
+          // Check if file exceeds subscription limit
+          if (profile && fileSize > profile.file_size_limit) {
+            const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+            const errorMessage = `File size (${formatFileSize(fileSize)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+            toast.error(errorMessage);
+            if (onFileSizeError) onFileSizeError(errorMessage);
+            setShowLimitInfo(true);
+            return;
+          }
+
+          // Check if file exceeds remaining storage
+          if (profile && fileSize > (profile.file_size_limit - profile.usage)) {
+            const errorMessage = `File size (${formatFileSize(fileSize)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
+            toast.error(errorMessage);
+            if (onFileSizeError) onFileSizeError(errorMessage);
+            setShowLimitInfo(true);
+            return;
+          }
+
+          // Generic size error
+          toast.error(`File is too large. Maximum size is ${formatFileSize(subscriptionLimit)}.`);
+          return;
+        }
+
+        // Handle other rejection reasons
+        const otherErrors = rejectedFiles.filter(file =>
+          file.errors.some((err: any) => err.code !== 'file-too-large')
+        );
+
+        if (otherErrors.length > 0) {
+          toast.error('Invalid file. Please upload a PDF file.');
+          return;
+        }
+      }
+
+      // If files are accepted, check against subscription limits
+      if (acceptedFiles.length > 0) {
+        const totalSize = acceptedFiles.reduce((sum, file) => sum + file.size, 0);
+
+        // Check if total size exceeds subscription limit
+        if (profile && totalSize > profile.file_size_limit) {
+          const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+          const errorMessage = `Total file size (${formatFileSize(totalSize)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+          toast.error(errorMessage);
+          if (onFileSizeError) onFileSizeError(errorMessage);
+          setShowLimitInfo(true);
+          return;
+        }
+
+        // Check if total size exceeds remaining storage
+        if (profile && totalSize > (profile.file_size_limit - profile.usage)) {
+          const errorMessage = `Total file size (${formatFileSize(totalSize)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
+          toast.error(errorMessage);
+          if (onFileSizeError) onFileSizeError(errorMessage);
+          setShowLimitInfo(true);
+          return;
+        }
+
+        // All checks passed, accept the files
+        setFiles(acceptedFiles);
+        onFilesAccepted(acceptedFiles);
+      }
     },
-    [onFilesAccepted]
+    [onFilesAccepted, profile, subscriptionLimit, onFileSizeError]
   );
 
   const removeFile = (index: number) => {
@@ -43,13 +149,55 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
     maxFiles,
-    maxSize,
+    maxSize: profile ? profile.file_size_limit : maxSize, // Use subscription limit if available
     accept,
     multiple,
   });
 
+  // Calculate effective max size (either from props or subscription)
+  const effectiveMaxSize = profile ? Math.min(maxSize, profile.file_size_limit) : maxSize;
+
+  // Get subscription tier name
+  const getSubscriptionTierName = () => {
+    if (!profile) return 'Free';
+    return profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+  };
+
   return (
     <div className="w-full">
+      {/* Subscription Limit Info */}
+      {profile && (
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            <span className="font-medium">{getSubscriptionTierName()} Plan: </span>
+            <span>{formatFileSize(profile.file_size_limit)} max file size</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            <span className="font-medium">Storage: </span>
+            <span>{formatFileSize(profile.usage)} / {formatFileSize(profile.file_size_limit)} used</span>
+          </div>
+        </div>
+      )}
+
+      {/* Storage Usage Bar */}
+      {profile && (
+        <div className="mb-4">
+          <div className="h-1.5 w-full rounded-full bg-gray-200">
+            <div
+              className={`h-1.5 rounded-full ${
+                profile.usage / profile.file_size_limit > 0.9
+                  ? 'bg-red-500'
+                  : profile.usage / profile.file_size_limit > 0.7
+                    ? 'bg-yellow-500'
+                    : 'bg-primary-500'
+              }`}
+              style={{ width: `${Math.min((profile.usage / profile.file_size_limit) * 100, 100)}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
+      {/* Dropzone */}
       <div
         {...getRootProps()}
         className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
@@ -67,11 +215,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         </p>
         <p className="mt-1 text-xs text-gray-500">
           {multiple
-            ? `PDF files up to ${maxSize / (1024 * 1024)}MB each`
-            : `PDF file up to ${maxSize / (1024 * 1024)}MB`}
+            ? `PDF files up to ${formatFileSize(effectiveMaxSize)} each`
+            : `PDF file up to ${formatFileSize(effectiveMaxSize)}`}
         </p>
+
+        {/* Show remaining storage */}
+        {profile && (
+          <p className="mt-1 text-xs text-gray-500">
+            Remaining storage: {formatFileSize(Math.max(0, profile.file_size_limit - profile.usage))}
+          </p>
+        )}
       </div>
 
+      {/* Selected Files */}
       {files.length > 0 && (
         <div className="mt-4">
           <h4 className="text-sm font-medium text-gray-700 mb-2">
@@ -90,7 +246,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                       {file.name}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {(file.size / (1024 * 1024)).toFixed(2)} MB
+                      {formatFileSize(file.size)}
                     </p>
                   </div>
                 </div>
@@ -104,6 +260,36 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Upgrade Prompt */}
+      {showLimitInfo && profile && (
+        <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <ExclamationCircleIcon className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">File Size Limit Reached</h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>
+                  Your current {getSubscriptionTierName()} plan allows files up to {formatFileSize(profile.file_size_limit)}.
+                </p>
+                <p className="mt-1">
+                  You have used {formatFileSize(profile.usage)} of your {formatFileSize(profile.file_size_limit)} storage.
+                </p>
+                <div className="mt-4">
+                  <a
+                    href="/pricing"
+                    className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                  >
+                    Upgrade Your Plan
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

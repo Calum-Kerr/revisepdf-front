@@ -28,6 +28,10 @@ export default function CompressPDFPage() {
   const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
   const [showFallbackContent, setShowFallbackContent] = useState(false);
 
+  // File size error state
+  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
   // Check authentication
   useEffect(() => {
     const checkAuth = async () => {
@@ -75,13 +79,47 @@ export default function CompressPDFPage() {
       setOriginalSize(selectedFile.size);
       setCompressedFile(null);
       setCompressedSize(0);
+      setFileSizeError(null);
+      setShowUpgradePrompt(false);
     }
+  };
+
+  const handleFileSizeError = (message: string) => {
+    setFileSizeError(message);
+    setShowUpgradePrompt(true);
+    // Clear any previously selected file
+    setFile(null);
+    setOriginalSize(0);
+    setCompressedFile(null);
+    setCompressedSize(0);
   };
 
   const handleCompress = async () => {
     if (!file) {
       toast.error('Please upload a PDF file first');
       return;
+    }
+
+    // Check file size against subscription limits
+    if (profile) {
+      // Check if file exceeds subscription tier limit
+      if (file.size > profile.file_size_limit) {
+        const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+        const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+        toast.error(errorMessage);
+        setFileSizeError(errorMessage);
+        setShowUpgradePrompt(true);
+        return;
+      }
+
+      // Check if file exceeds remaining storage
+      if (file.size > (profile.file_size_limit - profile.usage)) {
+        const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
+        toast.error(errorMessage);
+        setFileSizeError(errorMessage);
+        setShowUpgradePrompt(true);
+        return;
+      }
     }
 
     try {
@@ -97,6 +135,11 @@ export default function CompressPDFPage() {
       const compressed = await compressPDF(file, qualityMap[compressionLevel]);
       setCompressedFile(compressed);
       setCompressedSize(compressed.size);
+
+      // Update usage on server (this would be implemented in a real app)
+      // In a production app, you would update the user's storage usage here
+      // For example:
+      // await updateUserStorageUsage(user.id, compressed.size);
 
       toast.success('PDF compressed successfully!');
     } catch (error) {
@@ -198,10 +241,38 @@ export default function CompressPDFPage() {
                 <div className="mt-6">
                   <FileUpload
                     onFilesAccepted={handleFilesAccepted}
-                    maxSize={100 * 1024 * 1024} // 100MB max for demo
+                    onFileSizeError={handleFileSizeError}
+                    maxSize={100 * 1024 * 1024} // 100MB max, but will be limited by subscription
                     toolType="compress"
                   />
                 </div>
+
+                {/* File Size Error and Upgrade Prompt */}
+                {fileSizeError && showUpgradePrompt && (
+                  <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <ExclamationCircleIcon className="h-5 w-5 text-yellow-400" aria-hidden="true" />
+                      </div>
+                      <div className="ml-3">
+                        <h3 className="text-sm font-medium text-yellow-800">File Size Limit Exceeded</h3>
+                        <div className="mt-2 text-sm text-yellow-700">
+                          <p>{fileSizeError}</p>
+                          <div className="mt-4">
+                            <Button
+                              onClick={() => router.push('/pricing')}
+                              variant="primary"
+                              size="sm"
+                            >
+                              Upgrade Your Plan
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {file && (
                   <div className="mt-4 text-sm text-gray-500">
                     Original size: {formatFileSize(originalSize)}
