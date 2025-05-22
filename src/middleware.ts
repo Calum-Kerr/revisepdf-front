@@ -8,6 +8,9 @@ const protectedRoutes = ['/dashboard', '/profile', '/tools/compress', '/tools/me
 // Routes that should redirect to dashboard if authenticated
 const authRoutes = ['/login', '/signup', '/forgot-password'];
 
+// Public routes that should be accessible without authentication
+const publicRoutes = ['/', '/pricing', '/tools', '/terms', '/privacy', '/about', '/forgot-password'];
+
 // Skip middleware for static files and API routes
 const publicPaths = [
   '/locales',
@@ -46,6 +49,12 @@ export async function middleware(req: NextRequest) {
     if (session && authRoutes.some(route => pathname === route)) {
       console.log(`Middleware: Authenticated user accessing ${pathname}, redirecting to dashboard`);
       return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
+    // Check if the current path is a public route
+    if (publicRoutes.some(route => pathname === route)) {
+      console.log(`Middleware: Public route ${pathname}, allowing access`);
+      return res;
     }
 
     // PRIORITY 2: If the route is protected and the user is not authenticated, redirect to login

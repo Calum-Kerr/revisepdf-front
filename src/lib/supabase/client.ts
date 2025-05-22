@@ -240,6 +240,32 @@ export const signOut = async () => {
   }
 };
 
+export const resetPassword = async (email: string) => {
+  try {
+    console.log('Attempting to send password reset email to:', email);
+
+    // Always use the production URL for password reset to avoid localhost redirects
+    const productionUrl = 'https://revisepdf-app-779c79ba0815.herokuapp.com';
+    const redirectUrl = `${productionUrl}/auth/callback?type=recovery`;
+
+    // Send password reset email
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+
+    if (error) {
+      console.error('Error sending password reset email:', error);
+      return { error };
+    }
+
+    console.log('Password reset email sent successfully');
+    return { error: null };
+  } catch (err) {
+    console.error('Unexpected error during password reset:', err);
+    return { error: new Error('Failed to send password reset email. Please try again.') };
+  }
+};
+
 export const getCurrentUser = async () => {
   const { data: { session }, error } = await supabase.auth.getSession();
 
