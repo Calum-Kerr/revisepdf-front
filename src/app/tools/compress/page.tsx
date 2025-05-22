@@ -95,17 +95,25 @@ export default function CompressPDFPage() {
   };
 
   const handleCompress = async () => {
+    console.log('Compress button clicked');
+
     if (!file) {
       toast.error('Please upload a PDF file first');
+      console.error('No file selected for compression');
       return;
     }
 
+    console.log(`File selected for compression: ${file.name}, size: ${formatFileSize(file.size)}`);
+
     // Check file size against subscription limits
     if (profile) {
+      console.log(`Checking against subscription limits. User tier: ${profile.subscription_tier}, limit: ${formatFileSize(profile.file_size_limit)}`);
+
       // Check if file exceeds subscription tier limit
       if (file.size > profile.file_size_limit) {
         const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
         const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+        console.error(errorMessage);
         toast.error(errorMessage);
         setFileSizeError(errorMessage);
         setShowUpgradePrompt(true);
@@ -115,15 +123,19 @@ export default function CompressPDFPage() {
       // Check if file exceeds remaining storage
       if (file.size > (profile.file_size_limit - profile.usage)) {
         const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
+        console.error(errorMessage);
         toast.error(errorMessage);
         setFileSizeError(errorMessage);
         setShowUpgradePrompt(true);
         return;
       }
+
+      console.log('File size checks passed, proceeding with compression');
     }
 
     try {
       setIsCompressing(true);
+      console.log(`Starting compression with level: ${compressionLevel}`);
 
       // Map compression level to quality value (0-1)
       const qualityMap = {
@@ -132,7 +144,19 @@ export default function CompressPDFPage() {
         high: 0.9,
       };
 
-      const compressed = await compressPDF(file, qualityMap[compressionLevel]);
+      const qualityValue = qualityMap[compressionLevel];
+      console.log(`Using quality value: ${qualityValue}`);
+
+      // Show a toast to indicate compression has started
+      toast.loading('Compressing your PDF...', { id: 'compression-toast' });
+
+      // Add a small delay to ensure UI updates before heavy processing
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      console.log('Calling compressPDF function...');
+      const compressed = await compressPDF(file, qualityValue);
+      console.log(`Compression complete. Original: ${formatFileSize(file.size)}, Compressed: ${formatFileSize(compressed.size)}`);
+
       setCompressedFile(compressed);
       setCompressedSize(compressed.size);
 
@@ -141,12 +165,27 @@ export default function CompressPDFPage() {
       // For example:
       // await updateUserStorageUsage(user.id, compressed.size);
 
+      // Dismiss the loading toast and show success
+      toast.dismiss('compression-toast');
       toast.success('PDF compressed successfully!');
     } catch (error) {
-      console.error('Error compressing PDF:', error);
-      toast.error('Failed to compress PDF. Please try again.');
+      console.error('Error in handleCompress function:', error);
+
+      // Dismiss the loading toast
+      toast.dismiss('compression-toast');
+
+      // Show a more detailed error message
+      let errorMessage = 'Failed to compress PDF. Please try again.';
+
+      if (error instanceof Error) {
+        console.error(`Error details: ${error.message}`);
+        errorMessage = `Compression failed: ${error.message}`;
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsCompressing(false);
+      console.log('Compression process completed (success or failure)');
     }
   };
 

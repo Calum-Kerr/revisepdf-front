@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { clsx } from 'clsx';
+import toast from 'react-hot-toast';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'link';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -46,6 +47,22 @@ export const Button: React.FC<ButtonProps> = ({
 
   const widthStyles = fullWidth ? 'w-full' : '';
 
+  // Add a safe click handler to catch and log any errors
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    try {
+      // Call the original onClick handler if it exists
+      if (props.onClick) {
+        props.onClick(e);
+      }
+    } catch (error) {
+      console.error('Error in button click handler:', error);
+      // Prevent the default action if there was an error
+      e.preventDefault();
+      // Show an error toast
+      toast.error('An error occurred. Please try again.');
+    }
+  };
+
   return (
     <button
       className={clsx(
@@ -57,6 +74,7 @@ export const Button: React.FC<ButtonProps> = ({
       )}
       disabled={disabled || isLoading}
       {...props}
+      onClick={handleClick}
     >
       {isLoading && (
         <svg
