@@ -106,9 +106,28 @@ export const updateUserSubscription = async (
 
 // Authentication functions
 export const signUp = async (email: string, password: string) => {
+  // Determine the correct redirect URL for email verification
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                (typeof window !== 'undefined' ? window.location.origin : 'https://revisepdf-app-779c79ba0815.herokuapp.com');
+
+  const productionUrl = 'https://revisepdf-app-779c79ba0815.herokuapp.com';
+
+  // Use the production URL for email verification in production
+  const redirectUrl = process.env.NODE_ENV === 'production'
+    ? `${productionUrl}/auth/callback`
+    : `${appUrl}/auth/callback`;
+
+  console.log('Using redirect URL for signup:', redirectUrl);
+
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      emailRedirectTo: redirectUrl,
+      data: {
+        email: email,
+      },
+    },
   });
 
   if (error) {
@@ -163,10 +182,27 @@ export const signIn = async (email: string, password: string) => {
 };
 
 export const signInWithGoogle = async () => {
+  // Determine the correct redirect URL for OAuth
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                (typeof window !== 'undefined' ? window.location.origin : 'https://revisepdf-app-779c79ba0815.herokuapp.com');
+
+  const productionUrl = 'https://revisepdf-app-779c79ba0815.herokuapp.com';
+
+  // Use the production URL for OAuth redirect in production
+  const redirectUrl = process.env.NODE_ENV === 'production'
+    ? `${productionUrl}/auth/callback`
+    : `${appUrl}/auth/callback`;
+
+  console.log('Using redirect URL for Google sign-in:', redirectUrl);
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      redirectTo: redirectUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
     },
   });
 
