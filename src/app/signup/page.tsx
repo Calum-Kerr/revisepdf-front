@@ -36,7 +36,10 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
+          data: {
+            email: email,
+          },
         },
       });
 
@@ -44,13 +47,24 @@ export default function SignupPage() {
         throw error;
       }
 
-      toast.success('Account created! Please check your email to confirm your account.');
-      // Redirect to login page after successful signup
-      window.location.href = '/login';
+      // Check if email confirmation is required
+      const isEmailConfirmationRequired = !data.session;
+
+      if (isEmailConfirmationRequired) {
+        toast.success('Account created! Please check your email to confirm your account.');
+      } else {
+        toast.success('Account created successfully!');
+      }
+
+      // Add a small delay before redirecting
+      setTimeout(() => {
+        // Redirect to login page after successful signup
+        window.location.href = '/login';
+      }, 500);
+
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Signup failed. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -63,7 +77,11 @@ export default function SignupPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -72,6 +90,7 @@ export default function SignupPage() {
       }
 
       // The user will be redirected to Google for authentication
+      // No need to set isLoading to false here as the page will redirect
     } catch (error: any) {
       console.error('Google signup error:', error);
       toast.error(error.message || 'Google signup failed. Please try again.');

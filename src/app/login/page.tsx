@@ -35,13 +35,22 @@ export default function LoginPage() {
         throw error;
       }
 
+      // Check if we have a session
+      if (!data.session) {
+        throw new Error('No session returned from authentication');
+      }
+
       toast.success('Login successful!');
-      // Redirect to dashboard after successful login
-      window.location.href = '/dashboard';
+
+      // Add a small delay before redirecting to ensure state updates
+      setTimeout(() => {
+        // Redirect to dashboard after successful login
+        window.location.href = '/dashboard';
+      }, 500);
+
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed. Please check your credentials and try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -54,7 +63,11 @@ export default function LoginPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
@@ -63,6 +76,7 @@ export default function LoginPage() {
       }
 
       // The user will be redirected to Google for authentication
+      // No need to set isLoading to false here as the page will redirect
     } catch (error: any) {
       console.error('Google login error:', error);
       toast.error(error.message || 'Google login failed. Please try again.');
