@@ -492,23 +492,6 @@ export const resetPassword = async (email: string) => {
 
 
 
-
-// DEPRECATED: Update user storage usage - now calls recordFileOperation
-export const updateUserStorageUsage = async (userId: string, fileSize: number): Promise<UserProfile | null> => {
-  console.log('DEPRECATED: Using updateUserStorageUsage. Please update to use recordFileOperation instead.');
-
-  // Call the new function with default values
-  const result = await recordFileOperation(userId, 'compress', fileSize);
-
-  if (!result || !result.is_valid) {
-    console.error('Operation validation failed:', result?.error_message);
-    return null;
-  }
-
-  // Get the updated profile
-  return getUserProfile(userId);
-};
-
 export const getCurrentUser = async () => {
   console.log('Getting current user and profile...');
 
