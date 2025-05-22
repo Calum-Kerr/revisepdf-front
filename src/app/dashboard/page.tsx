@@ -22,13 +22,6 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase/client';
 
 // Define types for better type safety
-interface RecentFile {
-  id: number;
-  name: string;
-  size: number;
-  date: string;
-  type: 'compress' | 'merge' | 'split' | 'convert';
-}
 
 interface UserData {
   name: string;
@@ -36,7 +29,6 @@ interface UserData {
   plan: string;
   usedStorage: number; // MB
   totalStorage: number; // MB
-  recentFiles: RecentFile[];
 }
 
 // Default user data
@@ -46,11 +38,6 @@ const defaultUserData: UserData = {
   plan: 'Free',
   usedStorage: 0,
   totalStorage: 5,
-  recentFiles: [
-    { id: 1, name: 'business_report.pdf', size: 2.4, date: '2023-05-15', type: 'compress' },
-    { id: 2, name: 'contract_final.pdf', size: 1.8, date: '2023-05-14', type: 'split' },
-    { id: 3, name: 'presentation.pdf', size: 3.2, date: '2023-05-12', type: 'merge' },
-  ],
 };
 
 // PDF tool definitions
@@ -247,21 +234,7 @@ export default function DashboardPage() {
     return () => clearTimeout(loadingTimeout);
   }, [isLoading, loadingState, fetchUserData]);
 
-  // Helper function to get the appropriate icon for file types
-  const getToolIcon = (type: string) => {
-    switch (type) {
-      case 'compress':
-        return <DocumentArrowDownIcon className="h-5 w-5 text-primary-500" />;
-      case 'merge':
-        return <DocumentDuplicateIcon className="h-5 w-5 text-primary-500" />;
-      case 'split':
-        return <DocumentMinusIcon className="h-5 w-5 text-primary-500" />;
-      case 'convert':
-        return <DocumentArrowUpIcon className="h-5 w-5 text-primary-500" />;
-      default:
-        return <DocumentArrowDownIcon className="h-5 w-5 text-primary-500" />;
-    }
-  };
+  // No helper functions needed for file types since we don't store files
 
   // Loading state with timeout
   const [showFallbackDashboard, setShowFallbackDashboard] = useState(false);
@@ -442,65 +415,11 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Recent Files */}
-          <div className="mt-12">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Recent Files</h2>
-              <Link href="/files" className="text-sm font-medium text-primary-600 hover:text-primary-500">
-                View all
-              </Link>
-            </div>
-
-            {userData.recentFiles.length > 0 ? (
-              <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        File
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Size
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Date
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {userData.recentFiles.map((file) => (
-                      <tr key={file.id}>
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <div className="flex items-center">
-                            {getToolIcon(file.type)}
-                            <span className="ml-2 text-sm font-medium text-gray-900">{file.name}</span>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{file.size} MB</td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <ClockIcon className="mr-1 h-4 w-4 text-gray-400" />
-                            {file.date}
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm">
-                          <Button variant="link" size="sm">
-                            Download
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm">
-                <p className="text-gray-500">No recent files found. Start using our PDF tools to see your files here.</p>
-              </div>
-            )}
+          {/* Footer Note */}
+          <div className="mt-12 text-center">
+            <p className="text-sm text-gray-500">
+              RevisePDF does not store your files. All processing is done in your browser for maximum privacy.
+            </p>
           </div>
         </div>
       </div>

@@ -3,15 +3,28 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Protected routes that require authentication
-// Note: Dashboard handles its own authentication to avoid redirect loops
-const protectedRoutes = ['/profile', '/tools/compress', '/tools/merge', '/tools/split', '/tools/convert'];
+// Note: Dashboard and tool pages handle their own authentication to avoid redirect loops
+const protectedRoutes = ['/profile'];
 
 // Routes that should redirect to dashboard if authenticated
 const authRoutes = ['/login', '/signup', '/forgot-password'];
 
 // Public routes that should be accessible without authentication
-// Dashboard is included here to avoid middleware interference - it handles its own auth
-const publicRoutes = ['/', '/pricing', '/tools', '/terms', '/privacy', '/about', '/forgot-password', '/dashboard'];
+// Dashboard and tool pages are included here to avoid middleware interference - they handle their own auth
+const publicRoutes = [
+  '/',
+  '/pricing',
+  '/tools',
+  '/terms',
+  '/privacy',
+  '/about',
+  '/forgot-password',
+  '/dashboard',
+  '/tools/compress',
+  '/tools/merge',
+  '/tools/split',
+  '/tools/convert'
+];
 
 // Skip middleware for static files and API routes
 const publicPaths = [

@@ -1,21 +1,72 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { FileUpload } from '@/components/pdf/FileUpload';
 import { Button } from '@/components/ui/Button';
 import { compressPDF } from '@/lib/pdf/pdfUtils';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase/client';
+import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 export default function CompressPDFPage() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { user, session, isLoading } = useAuth();
+
   const [file, setFile] = useState<File | null>(null);
   const [compressedFile, setCompressedFile] = useState<Blob | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionLevel, setCompressionLevel] = useState<'low' | 'medium' | 'high'>('medium');
   const [originalSize, setOriginalSize] = useState<number>(0);
   const [compressedSize, setCompressedSize] = useState<number>(0);
+
+  // Authentication states
+  const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [showFallbackContent, setShowFallbackContent] = useState(false);
+
+  // Check authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // If still loading auth state, wait
+        if (isLoading) {
+          return;
+        }
+
+        // Direct check with Supabase to ensure we have a valid session
+        const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+
+        if (supabaseSession) {
+          console.log('Valid session found for compress tool');
+          setAuthState('authenticated');
+        } else {
+          console.log('No valid session found for compress tool, redirecting to login');
+          setAuthState('unauthenticated');
+
+          // Set a timeout to redirect to login
+          setTimeout(() => {
+            window.location.href = '/login?redirect=/tools/compress';
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        setAuthState('unauthenticated');
+      }
+    };
+
+    checkAuth();
+
+    // Set a timeout to show content anyway after 5 seconds
+    const fallbackTimer = setTimeout(() => {
+      setShowFallbackContent(true);
+    }, 5000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [isLoading]);
 
   const handleFilesAccepted = (files: File[]) => {
     if (files.length > 0) {
@@ -81,6 +132,50 @@ export default function CompressPDFPage() {
     if (!originalSize || !compressedSize) return 0;
     return Math.round(((originalSize - compressedSize) / originalSize) * 100);
   };
+
+  // Show loading state
+  if (authState === 'loading' && !showFallbackContent) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <ArrowPathIcon className="mx-auto h-12 w-12 animate-spin text-primary-500" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Loading PDF Compression Tool...</h3>
+            <p className="mt-1 text-sm text-gray-500">Please wait while we verify your account.</p>
+            <button
+              onClick={() => setShowFallbackContent(true)}
+              className="mt-4 text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
+              Continue anyway
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Show error state
+  if (authState === 'unauthenticated' && !showFallbackContent) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <ExclamationCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Authentication Required</h3>
+            <p className="mt-1 text-sm text-gray-500">Please log in to access the PDF compression tool.</p>
+            <div className="mt-6">
+              <Button
+                onClick={() => router.push('/login?redirect=/tools/compress')}
+                variant="primary"
+              >
+                Go to Login
+              </Button>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
