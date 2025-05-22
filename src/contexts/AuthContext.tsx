@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchUser = async () => {
       try {
         setIsLoading(true);
+        console.log('AuthContext: Initializing and checking for existing session');
 
         // First check if we have a session in localStorage
         const { data: { session: existingSession } } = await supabase.auth.getSession();
@@ -69,7 +70,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           if (refreshError) {
             console.error('Error refreshing session:', refreshError);
-            // Clear invalid session
+
+            // Check if it's an expired session error
+            if (refreshError.message.includes('expired')) {
+              console.log('Session expired, attempting to recover with refresh token');
+
+              // Try to get a new session using the refresh token
+              try {
+                // Get the refresh token from localStorage
+                const storedAuth = localStorage.getItem('supabase-auth-token');
+                if (storedAuth) {
+                  const { refresh_token } = JSON.parse(storedAuth);
+                  if (refresh_token) {
+                    console.log('Found refresh token, attempting to set session');
+                    const { data, error: setSessionError } = await supabase.auth.setSession({
+                      refresh_token,
+                      access_token: '',
+                    });
+
+                    if (setSessionError) {
+                      console.error('Error setting session with refresh token:', setSessionError);
+                      // Clear invalid session
+                      await supabase.auth.signOut();
+                      setUser(null);
+                      setSession(null);
+                      setProfile(null);
+                    } else if (data.session) {
+                      console.log('Successfully recovered session with refresh token');
+                      setSession(data.session);
+                      setUser(data.user);
+
+                      // Fetch the user profile
+                      await fetchUserProfile(data.user.id);
+
+                      // Update localStorage with new tokens
+                      localStorage.setItem('supabase-auth-token', JSON.stringify({
+                        access_token: data.session.access_token,
+                        refresh_token: data.session.refresh_token,
+                      }));
+
+                      // Exit early since we've successfully recovered
+                      setIsLoading(false);
+                      return;
+                    }
+                  }
+                }
+              } catch (recoveryError) {
+                console.error('Error recovering session:', recoveryError);
+              }
+            }
+
+            // If recovery failed or wasn't attempted, clear the session
             await supabase.auth.signOut();
             setUser(null);
             setSession(null);
@@ -127,6 +178,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               access_token: session.access_token,
               refresh_token: session.refresh_token,
             }));
+
+            // Set a session cookie to help with persistence
+            document.cookie = `supabase-auth-session-exists=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
           }
         } else if (event === 'SIGNED_OUT') {
           console.log('User signed out');
@@ -136,6 +190,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Clear localStorage
           localStorage.removeItem('supabase-auth-token');
+          localStorage.removeItem('supabase.auth.token');
+
+          // Clear cookies
+          document.cookie = 'supabase-auth-session-exists=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
+        } else if (event === 'USER_UPDATED') {
+          console.log('User updated, refreshing profile');
+          if (session?.user) {
+            const { profile } = await getCurrentUser();
+            setProfile(profile || null);
+          }
+        } else if (event === 'SESSION_UPDATED') {
+          console.log('Session updated, refreshing tokens');
+          if (session) {
+            setSession(session);
+            setUser(session.user);
+
+            // Update stored tokens
+            localStorage.setItem('supabase-auth-token', JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            }));
+          }
         }
 
         setIsLoading(false);
@@ -151,14 +227,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    // Handle visibility change to refresh auth state when user returns to the app
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Page became visible, checking auth state');
+        try {
+          // Check if we have a session
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+          if (currentSession) {
+            console.log('Session found on visibility change, refreshing');
+            // If we have a session but no user in state, refresh the auth state
+            if (!user || !session) {
+              console.log('User state missing but session exists, refreshing auth state');
+              setUser(currentSession.user);
+              setSession(currentSession);
+
+              // Fetch the user profile
+              const { profile } = await getCurrentUser();
+              setProfile(profile || null);
+            }
+          } else if (user || session) {
+            // If we have user state but no session, clear the state
+            console.log('No session found but user state exists, clearing auth state');
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+          }
+        } catch (error) {
+          console.error('Error checking auth state on visibility change:', error);
+        }
+      }
+    };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('storage-usage-updated', handleStorageUpdate);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
     }
 
     return () => {
       authListener.subscription.unsubscribe();
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage-usage-updated', handleStorageUpdate);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };
   }, []);

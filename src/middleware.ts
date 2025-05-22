@@ -3,14 +3,12 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Protected routes that require authentication
-// Note: Dashboard and tool pages handle their own authentication to avoid redirect loops
 const protectedRoutes = ['/profile'];
 
 // Routes that should redirect to dashboard if authenticated
 const authRoutes = ['/login', '/signup', '/forgot-password'];
 
 // Public routes that should be accessible without authentication
-// Dashboard and tool pages are included here to avoid middleware interference - they handle their own auth
 const publicRoutes = [
   '/',
   '/pricing',
@@ -18,7 +16,12 @@ const publicRoutes = [
   '/terms',
   '/privacy',
   '/about',
-  '/forgot-password',
+  '/forgot-password'
+];
+
+// Tool routes that should check authentication but not redirect
+// These routes will handle their own authentication state in the component
+const toolRoutes = [
   '/dashboard',
   '/tools/compress',
   '/tools/merge',
@@ -69,6 +72,27 @@ export async function middleware(req: NextRequest) {
     // Check if the current path is a public route
     if (publicRoutes.some(route => pathname === route)) {
       console.log(`Middleware: Public route ${pathname}, allowing access`);
+      return res;
+    }
+
+    // Check if the current path is a tool route
+    // For tool routes, we'll enhance the response with auth cookies but not redirect
+    if (toolRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
+      console.log(`Middleware: Tool route ${pathname}, enhancing response with auth cookies`);
+
+      // If the user is authenticated, set a cookie to help with auth persistence
+      if (session) {
+        res.cookies.set({
+          name: 'supabase-auth-session-exists',
+          value: 'true',
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 7, // 1 week
+          path: '/',
+        });
+      }
+
       return res;
     }
 

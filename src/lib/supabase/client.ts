@@ -14,6 +14,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storageKey: 'supabase-auth-token',
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: 'pkce', // Use PKCE flow for better security
+  },
+  // Add global error handler
+  global: {
+    fetch: (...args) => {
+      return fetch(...args).catch(error => {
+        console.error('Supabase fetch error:', error);
+        throw error;
+      });
+    },
   },
 });
 
@@ -206,6 +216,17 @@ export const signUp = async (email: string, password: string) => {
 
 export const signIn = async (email: string, password: string) => {
   try {
+    console.log('Attempting to sign in with email:', email);
+
+    // First, clear any existing sessions to prevent conflicts
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (signOutError) {
+      console.warn('Error clearing existing session before sign in:', signOutError);
+      // Continue with sign in attempt even if this fails
+    }
+
+    // Sign in with password
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -225,11 +246,32 @@ export const signIn = async (email: string, password: string) => {
       };
     }
 
-    // Verify the session is valid
-    await supabase.auth.setSession({
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-    });
+    console.log('Sign in successful, got session with user ID:', data.user.id);
+
+    // Verify the session is valid and explicitly set it
+    try {
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+
+      if (sessionError) {
+        console.error('Error setting session after sign in:', sessionError);
+        // Continue with the original session
+      } else if (sessionData.session) {
+        console.log('Session explicitly set and verified');
+
+        // Set a cookie to help with session persistence
+        if (typeof document !== 'undefined') {
+          document.cookie = `supabase-auth-session-exists=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+        }
+
+        return { session: sessionData.session, user: sessionData.user, error: null };
+      }
+    } catch (sessionSetError) {
+      console.error('Unexpected error setting session:', sessionSetError);
+      // Continue with the original session
+    }
 
     return { session: data.session, user: data.user, error: null };
   } catch (err) {

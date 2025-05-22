@@ -15,7 +15,7 @@ import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outlin
 export default function CompressPDFPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { user, session, isLoading } = useAuth();
+  const { user, profile, session, isLoading } = useAuth();
 
   const [file, setFile] = useState<File | null>(null);
   const [compressedFile, setCompressedFile] = useState<Blob | null>(null);
@@ -38,23 +38,46 @@ export default function CompressPDFPage() {
       try {
         // If still loading auth state, wait
         if (isLoading) {
+          console.log('Auth context still loading, waiting...');
           return;
         }
 
-        // Direct check with Supabase to ensure we have a valid session
+        // First check if we have a user in the auth context
+        if (user && session) {
+          console.log('User found in auth context:', user.id);
+          setAuthState('authenticated');
+          return;
+        }
+
+        // If not in context, direct check with Supabase to ensure we have a valid session
+        console.log('No user in context, checking with Supabase directly');
         const { data: { session: supabaseSession } } = await supabase.auth.getSession();
 
         if (supabaseSession) {
-          console.log('Valid session found for compress tool');
+          console.log('Valid session found for compress tool:', supabaseSession.user.id);
+
+          // Try to refresh the session to ensure it's valid
+          try {
+            const { data } = await supabase.auth.refreshSession();
+            if (data.session) {
+              console.log('Session refreshed successfully');
+              setAuthState('authenticated');
+
+              // Force a refresh of the auth context
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('visibilitychange'));
+              }
+              return;
+            }
+          } catch (refreshError) {
+            console.error('Error refreshing session:', refreshError);
+          }
+
+          // Even if refresh fails, if we have a session, consider authenticated
           setAuthState('authenticated');
         } else {
-          console.log('No valid session found for compress tool, redirecting to login');
+          console.log('No valid session found for compress tool');
           setAuthState('unauthenticated');
-
-          // Set a timeout to redirect to login
-          setTimeout(() => {
-            window.location.href = '/login?redirect=/tools/compress';
-          }, 2000);
         }
       } catch (error) {
         console.error('Error checking authentication:', error);
@@ -66,11 +89,14 @@ export default function CompressPDFPage() {
 
     // Set a timeout to show content anyway after 5 seconds
     const fallbackTimer = setTimeout(() => {
-      setShowFallbackContent(true);
+      if (authState === 'loading') {
+        console.log('Auth check taking too long, showing fallback content');
+        setShowFallbackContent(true);
+      }
     }, 5000);
 
     return () => clearTimeout(fallbackTimer);
-  }, [isLoading]);
+  }, [isLoading, user, session, authState]);
 
   const handleFilesAccepted = (files: File[]) => {
     if (files.length > 0) {
