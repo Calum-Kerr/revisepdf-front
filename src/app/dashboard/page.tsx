@@ -99,6 +99,7 @@ export default function DashboardPage() {
   const fetchUserData = async () => {
     try {
       setLoadingState('loading');
+      console.log('Fetching user data...');
 
       // Get the current session directly from Supabase
       const { data: { session: currentSession } } = await supabase.auth.getSession();
@@ -110,6 +111,8 @@ export default function DashboardPage() {
         return;
       }
 
+      console.log('Session found:', currentSession.user.id);
+
       // Get the current user from the session if not available in context
       const currentUser = user || currentSession.user;
 
@@ -120,6 +123,8 @@ export default function DashboardPage() {
         return;
       }
 
+      console.log('User found:', currentUser.email);
+
       // Update user data with available information
       const updatedUserData = {
         ...defaultUserData,
@@ -127,34 +132,46 @@ export default function DashboardPage() {
         email: currentUser.email || 'No email available',
       };
 
-      // If we don't have a profile in context, try to fetch it
-      let userProfile = profile;
-      if (!userProfile) {
-        try {
-          console.log('Fetching user profile directly');
-          const { data } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentUser.id)
-            .single();
+      console.log('Basic user data set');
 
-          userProfile = data;
-          console.log('Fetched profile:', userProfile);
-        } catch (profileError) {
-          console.error('Error fetching profile:', profileError);
-          // Continue with default values if profile fetch fails
+      // Always try to fetch the latest profile data directly from Supabase
+      try {
+        console.log('Fetching user profile directly for user ID:', currentUser.id);
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile from database:', error);
+          // If we can't fetch the profile, use the one from context if available
+          if (profile) {
+            console.log('Using profile from context instead');
+            const userProfile = profile;
+            updatedUserData.plan = userProfile.subscription_tier?.charAt(0).toUpperCase() +
+                                  userProfile.subscription_tier?.slice(1) || 'Free';
+            updatedUserData.usedStorage = userProfile.usage ? userProfile.usage / (1024 * 1024) : 0;
+            updatedUserData.totalStorage = userProfile.file_size_limit ?
+                                         userProfile.file_size_limit / (1024 * 1024) : 5;
+          }
+        } else if (data) {
+          console.log('Profile fetched successfully:', data);
+          // Use the fetched profile data
+          updatedUserData.plan = data.subscription_tier?.charAt(0).toUpperCase() +
+                                data.subscription_tier?.slice(1) || 'Free';
+          updatedUserData.usedStorage = data.usage ? data.usage / (1024 * 1024) : 0; // Convert bytes to MB
+          updatedUserData.totalStorage = data.file_size_limit ?
+                                       data.file_size_limit / (1024 * 1024) : 5; // Convert bytes to MB
+        } else {
+          console.log('No profile data found, using defaults');
         }
+      } catch (profileError) {
+        console.error('Exception fetching profile:', profileError);
+        // Continue with default values if profile fetch fails
       }
 
-      // If profile is available, update subscription info
-      if (userProfile) {
-        updatedUserData.plan = userProfile.subscription_tier?.charAt(0).toUpperCase() +
-                              userProfile.subscription_tier?.slice(1) || 'Free';
-        updatedUserData.usedStorage = userProfile.usage ? userProfile.usage / (1024 * 1024) : 0; // Convert bytes to MB
-        updatedUserData.totalStorage = userProfile.file_size_limit ?
-                                     userProfile.file_size_limit / (1024 * 1024) : 5; // Convert bytes to MB
-      }
-
+      console.log('Setting user data and success state');
       setUserData(updatedUserData);
       setLoadingState('success');
     } catch (error: any) {
@@ -166,27 +183,47 @@ export default function DashboardPage() {
 
   // Check authentication and load user data
   useEffect(() => {
-    // If still loading auth state, wait
-    if (isLoading) {
-      return;
-    }
+    console.log('Dashboard useEffect triggered, isLoading:', isLoading);
+
+    // Set a timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (loadingState === 'loading') {
+        console.log('Loading timeout reached, forcing data fetch');
+        checkAndLoadData();
+      }
+    }, 3000); // 3 seconds timeout
 
     const checkAndLoadData = async () => {
       try {
+        console.log('Checking authentication status...');
+
         // Direct check with Supabase to ensure we have a valid session
         const { data: { session: supabaseSession } } = await supabase.auth.getSession();
 
         if (supabaseSession) {
-          console.log('Valid session found directly from Supabase');
+          console.log('Valid session found directly from Supabase:', supabaseSession.user.id);
 
-          // If we have a session but no user in context, refresh the session
-          if (!user) {
+          // Always try to refresh the session to ensure it's valid
+          try {
             const { data } = await supabase.auth.refreshSession();
-            console.log('Session refreshed:', !!data.session);
-          }
+            console.log('Session refresh attempt result:', !!data.session);
 
-          // Proceed with loading user data
-          fetchUserData();
+            if (data.session) {
+              console.log('Session refreshed successfully, proceeding to fetch user data');
+              // Proceed with loading user data with a small delay to ensure state updates
+              setTimeout(() => {
+                fetchUserData();
+              }, 100);
+            } else {
+              console.log('Session refresh failed, using existing session');
+              // Still try to fetch user data with the existing session
+              fetchUserData();
+            }
+          } catch (refreshError) {
+            console.error('Error refreshing session:', refreshError);
+            // Still try to fetch user data with the existing session
+            fetchUserData();
+          }
         } else {
           console.log('No valid session found, redirecting to login');
           // Force a hard redirect to login to avoid middleware issues
@@ -199,8 +236,16 @@ export default function DashboardPage() {
       }
     };
 
-    checkAndLoadData();
-  }, [isLoading, user, fetchUserData]);
+    // If not loading auth state, check and load data
+    if (!isLoading) {
+      checkAndLoadData();
+    } else {
+      console.log('Auth context still loading, waiting...');
+    }
+
+    // Clean up timeout
+    return () => clearTimeout(loadingTimeout);
+  }, [isLoading, loadingState, fetchUserData]);
 
   // Helper function to get the appropriate icon for file types
   const getToolIcon = (type: string) => {
@@ -218,8 +263,27 @@ export default function DashboardPage() {
     }
   };
 
-  // Loading state
-  if (loadingState === 'loading') {
+  // Loading state with timeout
+  const [showFallbackDashboard, setShowFallbackDashboard] = useState(false);
+
+  // Set a timeout to show fallback dashboard if loading takes too long
+  useEffect(() => {
+    let fallbackTimer: NodeJS.Timeout;
+
+    if (loadingState === 'loading') {
+      fallbackTimer = setTimeout(() => {
+        console.log('Loading timeout reached, showing fallback dashboard');
+        setShowFallbackDashboard(true);
+      }, 5000); // 5 seconds timeout
+    }
+
+    return () => {
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+    };
+  }, [loadingState]);
+
+  // Show loading state unless fallback is triggered
+  if (loadingState === 'loading' && !showFallbackDashboard) {
     return (
       <MainLayout>
         <div className="flex min-h-[60vh] items-center justify-center">
@@ -227,10 +291,22 @@ export default function DashboardPage() {
             <ArrowPathIcon className="mx-auto h-12 w-12 animate-spin text-primary-500" />
             <h3 className="mt-4 text-lg font-medium text-gray-900">Loading your dashboard...</h3>
             <p className="mt-1 text-sm text-gray-500">Please wait while we fetch your information.</p>
+            <button
+              onClick={() => setShowFallbackDashboard(true)}
+              className="mt-4 text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
+              Show dashboard anyway
+            </button>
           </div>
         </div>
       </MainLayout>
     );
+  }
+
+  // If loading takes too long, show the dashboard with default data
+  if (loadingState === 'loading' && showFallbackDashboard) {
+    console.log('Showing fallback dashboard with default data');
+    // Continue to the dashboard render below with default data
   }
 
   // Error state
