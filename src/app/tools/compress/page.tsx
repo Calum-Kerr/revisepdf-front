@@ -301,7 +301,7 @@ export default function CompressPDFPage() {
                   <FileUpload
                     onFilesAccepted={handleFilesAccepted}
                     onFileSizeError={handleFileSizeError}
-                    maxSize={100 * 1024 * 1024} // 100MB max, but will be limited by subscription
+                    maxSize={5 * 1024 * 1024} // 5MB default for free tier, will be adjusted based on subscription
                     toolType="compress"
                   />
                 </div>

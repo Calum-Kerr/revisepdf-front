@@ -48,9 +48,9 @@ export default function ConvertPDFPage() {
       id: 'word-to-pdf',
       title: 'Word to PDF',
       description: 'Convert Word documents to PDF format',
-      acceptedFiles: { 
+      acceptedFiles: {
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-        'application/msword': ['.doc'] 
+        'application/msword': ['.doc']
       },
       outputFormat: 'PDF',
     },
@@ -74,16 +74,16 @@ export default function ConvertPDFPage() {
 
     try {
       setIsConverting(true);
-      
+
       // Simulate conversion process with a timeout
       // In a real app, you would use appropriate libraries for each conversion type
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // For demo purposes, we'll just create a mock blob
       // In a real app, this would be the actual converted file
       const mockBlob = new Blob([await file.arrayBuffer()], { type: 'application/octet-stream' });
       setConvertedFile(mockBlob);
-      
+
       toast.success(`File converted to ${currentOption.outputFormat} successfully!`);
     } catch (error) {
       console.error('Error converting file:', error);
@@ -95,11 +95,11 @@ export default function ConvertPDFPage() {
 
   const handleDownload = () => {
     if (!convertedFile || !file) return;
-    
+
     const url = URL.createObjectURL(convertedFile);
     const a = document.createElement('a');
     a.href = url;
-    
+
     // Set appropriate file extension based on conversion type
     let filename = file.name.split('.')[0];
     switch (conversionType) {
@@ -116,7 +116,7 @@ export default function ConvertPDFPage() {
         filename += '.pdf';
         break;
     }
-    
+
     a.download = filename;
     document.body.appendChild(a);
     a.click();
@@ -142,7 +142,7 @@ export default function ConvertPDFPage() {
               Convert between PDF and other file formats
             </p>
           </div>
-          
+
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20">
             <div className="space-y-10">
               <div className="border-b border-gray-200 pb-10">
@@ -167,16 +167,17 @@ export default function ConvertPDFPage() {
                   ))}
                 </div>
               </div>
-              
+
               <div className="border-b border-gray-200 pb-10">
                 <h3 className="text-base font-semibold leading-7 text-gray-900">2. Upload your file</h3>
                 <p className="mt-1 text-sm leading-6 text-gray-600">
                   Select a file to convert
                 </p>
                 <div className="mt-6">
-                  <FileUpload 
-                    onFilesAccepted={handleFilesAccepted} 
-                    maxSize={100 * 1024 * 1024} // 100MB max for demo
+                  <FileUpload
+                    onFilesAccepted={handleFilesAccepted}
+                    onFileSizeError={(message) => toast.error(message)}
+                    maxSize={5 * 1024 * 1024} // 5MB default for free tier, will be adjusted based on subscription
                     accept={currentOption.acceptedFiles}
                     toolType="convert"
                   />
@@ -187,7 +188,7 @@ export default function ConvertPDFPage() {
                   </div>
                 )}
               </div>
-              
+
               {file && (
                 <div className="border-b border-gray-200 pb-10">
                   <h3 className="text-base font-semibold leading-7 text-gray-900">3. Convert your file</h3>
@@ -195,8 +196,8 @@ export default function ConvertPDFPage() {
                     Click the button below to convert your file
                   </p>
                   <div className="mt-6">
-                    <Button 
-                      onClick={handleConvert} 
+                    <Button
+                      onClick={handleConvert}
                       isLoading={isConverting}
                       disabled={!file || isConverting}
                       fullWidth
@@ -206,7 +207,7 @@ export default function ConvertPDFPage() {
                   </div>
                 </div>
               )}
-              
+
               {convertedFile && (
                 <div>
                   <h3 className="text-base font-semibold leading-7 text-gray-900">4. Download converted file</h3>

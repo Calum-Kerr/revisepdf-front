@@ -15,10 +15,10 @@ export default function SplitPDFPage() {
   const [splitFiles, setSplitFiles] = useState<Blob[]>([]);
   const [isSplitting, setIsSplitting] = useState(false);
   const [pageCount, setPageCount] = useState<number>(0);
-  
+
   // For range splitting
   const [ranges, setRanges] = useState<{ start: number; end: number }[]>([{ start: 1, end: 1 }]);
-  
+
   // For page extraction
   const [selectedPages, setSelectedPages] = useState<number[]>([]);
   const [pageInput, setPageInput] = useState<string>('');
@@ -28,12 +28,12 @@ export default function SplitPDFPage() {
       const selectedFile = files[0];
       setFile(selectedFile);
       setSplitFiles([]);
-      
+
       // Simulate getting page count (in a real app, you'd use PDF.js to get this)
       // For demo purposes, we'll set a random page count between 5-20
       const randomPageCount = Math.floor(Math.random() * 16) + 5;
       setPageCount(randomPageCount);
-      
+
       // Reset ranges and selected pages
       setRanges([{ start: 1, end: randomPageCount }]);
       setSelectedPages([]);
@@ -63,11 +63,11 @@ export default function SplitPDFPage() {
 
   const addPageSelection = () => {
     if (!pageInput.trim()) return;
-    
+
     try {
       // Parse page input (e.g., "1,3-5,7" => [1,3,4,5,7])
       const pages: number[] = [];
-      
+
       pageInput.split(',').forEach(part => {
         part = part.trim();
         if (part.includes('-')) {
@@ -84,7 +84,7 @@ export default function SplitPDFPage() {
           }
         }
       });
-      
+
       setSelectedPages([...new Set([...selectedPages, ...pages])].sort((a, b) => a - b));
       setPageInput('');
     } catch (error) {
@@ -104,21 +104,21 @@ export default function SplitPDFPage() {
 
     try {
       setIsSplitting(true);
-      
+
       if (splitMode === 'range') {
         // Validate ranges
-        const validRanges = ranges.filter(range => 
-          range.start > 0 && 
-          range.end <= pageCount && 
+        const validRanges = ranges.filter(range =>
+          range.start > 0 &&
+          range.end <= pageCount &&
           range.start <= range.end
         );
-        
+
         if (validRanges.length === 0) {
           toast.error('Please provide valid page ranges');
           setIsSplitting(false);
           return;
         }
-        
+
         const result = await splitPDF(file, validRanges);
         setSplitFiles(result);
       } else {
@@ -128,11 +128,11 @@ export default function SplitPDFPage() {
           setIsSplitting(false);
           return;
         }
-        
+
         const result = await extractPages(file, selectedPages);
         setSplitFiles([result]);
       }
-      
+
       toast.success('PDF split successfully!');
     } catch (error) {
       console.error('Error splitting PDF:', error);
@@ -144,17 +144,17 @@ export default function SplitPDFPage() {
 
   const handleDownload = (index: number) => {
     if (!splitFiles[index]) return;
-    
+
     const url = URL.createObjectURL(splitFiles[index]);
     const a = document.createElement('a');
     a.href = url;
-    
+
     if (splitMode === 'range') {
       a.download = `split_${index + 1}_${file?.name || 'document.pdf'}`;
     } else {
       a.download = `extracted_pages_${file?.name || 'document.pdf'}`;
     }
-    
+
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -179,7 +179,7 @@ export default function SplitPDFPage() {
               Extract pages or split a PDF into multiple files
             </p>
           </div>
-          
+
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20">
             <div className="space-y-10">
               <div className="border-b border-gray-200 pb-10">
@@ -188,9 +188,10 @@ export default function SplitPDFPage() {
                   Select a PDF file from your device to split
                 </p>
                 <div className="mt-6">
-                  <FileUpload 
-                    onFilesAccepted={handleFilesAccepted} 
-                    maxSize={100 * 1024 * 1024} // 100MB max for demo
+                  <FileUpload
+                    onFilesAccepted={handleFilesAccepted}
+                    onFileSizeError={(message) => toast.error(message)}
+                    maxSize={5 * 1024 * 1024} // 5MB default for free tier, will be adjusted based on subscription
                     toolType="split"
                   />
                 </div>
@@ -200,7 +201,7 @@ export default function SplitPDFPage() {
                   </div>
                 )}
               </div>
-              
+
               {file && pageCount > 0 && (
                 <div className="border-b border-gray-200 pb-10">
                   <h3 className="text-base font-semibold leading-7 text-gray-900">2. Choose split method</h3>
@@ -235,7 +236,7 @@ export default function SplitPDFPage() {
                   </div>
                 </div>
               )}
-              
+
               {file && pageCount > 0 && splitMode === 'range' && (
                 <div className="border-b border-gray-200 pb-10">
                   <h3 className="text-base font-semibold leading-7 text-gray-900">3. Define page ranges</h3>
@@ -294,7 +295,7 @@ export default function SplitPDFPage() {
                   </div>
                 </div>
               )}
-              
+
               {file && pageCount > 0 && splitMode === 'extract' && (
                 <div className="border-b border-gray-200 pb-10">
                   <h3 className="text-base font-semibold leading-7 text-gray-900">3. Select pages to extract</h3>
@@ -317,7 +318,7 @@ export default function SplitPDFPage() {
                     <div className="text-xs text-gray-500">
                       Enter page numbers separated by commas. Use hyphens for ranges (e.g., 1,3-5,7).
                     </div>
-                    
+
                     {selectedPages.length > 0 && (
                       <div className="mt-4">
                         <h4 className="text-sm font-medium text-gray-700">Selected Pages:</h4>
@@ -345,32 +346,32 @@ export default function SplitPDFPage() {
                   </div>
                 </div>
               )}
-              
+
               {file && pageCount > 0 && (splitMode === 'range' && ranges.length > 0 || splitMode === 'extract' && selectedPages.length > 0) && (
                 <div className="border-b border-gray-200 pb-10">
                   <h3 className="text-base font-semibold leading-7 text-gray-900">
                     {splitMode === 'range' ? '4. Split your PDF' : '4. Extract pages from your PDF'}
                   </h3>
                   <p className="mt-1 text-sm leading-6 text-gray-600">
-                    {splitMode === 'range' 
+                    {splitMode === 'range'
                       ? 'Click the button below to split your PDF into separate files'
                       : 'Click the button below to extract the selected pages into a new PDF'}
                   </p>
                   <div className="mt-6">
-                    <Button 
-                      onClick={handleSplit} 
+                    <Button
+                      onClick={handleSplit}
                       isLoading={isSplitting}
                       disabled={isSplitting}
                       fullWidth
                     >
-                      {isSplitting 
-                        ? (splitMode === 'range' ? 'Splitting...' : 'Extracting...') 
+                      {isSplitting
+                        ? (splitMode === 'range' ? 'Splitting...' : 'Extracting...')
                         : (splitMode === 'range' ? 'Split PDF' : 'Extract Pages')}
                     </Button>
                   </div>
                 </div>
               )}
-              
+
               {splitFiles.length > 0 && (
                 <div>
                   <h3 className="text-base font-semibold leading-7 text-gray-900">
@@ -382,8 +383,8 @@ export default function SplitPDFPage() {
                         <div key={index} className="flex items-center justify-between">
                           <div>
                             <h4 className="text-base font-semibold text-gray-900">
-                              {splitMode === 'range' 
-                                ? `Split PDF ${index + 1} (Pages ${ranges[index]?.start}-${ranges[index]?.end})` 
+                              {splitMode === 'range'
+                                ? `Split PDF ${index + 1} (Pages ${ranges[index]?.start}-${ranges[index]?.end})`
                                 : 'Extracted Pages PDF'}
                             </h4>
                             <div className="mt-1 text-sm text-gray-500">

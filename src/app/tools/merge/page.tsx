@@ -132,7 +132,8 @@ export default function MergePDFsPage() {
                 <div className="mt-6">
                   <FileUpload
                     onFilesAccepted={handleFilesAccepted}
-                    maxSize={100 * 1024 * 1024} // 100MB max for demo
+                    onFileSizeError={(message) => toast.error(message)}
+                    maxSize={5 * 1024 * 1024} // 5MB default for free tier, will be adjusted based on subscription
                     maxFiles={10} // Allow up to 10 files
                     multiple={true}
                     toolType="merge"

@@ -11,11 +11,11 @@ import toast from 'react-hot-toast';
 interface FileUploadProps {
   onFilesAccepted: (files: File[]) => void;
   maxFiles?: number;
-  maxSize?: number;
+  maxSize?: number; // This will be limited by subscription tier
   accept?: Record<string, string[]>;
   multiple?: boolean;
   toolType?: 'compress' | 'merge' | 'split' | 'convert';
-  onFileSizeError?: (message: string) => void;
+  onFileSizeError?: (message: string) => void; // Callback for file size errors
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({
@@ -36,7 +36,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   // Get subscription limits based on user profile
   useEffect(() => {
+    // Default to free tier limit if no profile is available
+    const freeTierLimit = 5 * 1024 * 1024; // 5MB
+
     if (profile) {
+      // Authenticated user with profile - use their subscription tier limit
       const tierLimit = profile.file_size_limit;
       const usedStorage = profile.usage;
       const totalStorage = profile.file_size_limit;
@@ -49,6 +53,11 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       if (tierLimit < maxSize) {
         console.log(`Adjusting max file size from ${maxSize} to ${tierLimit} based on subscription`);
       }
+    } else {
+      // No profile available (unauthenticated user) - enforce free tier limit
+      console.log(`No user profile available. Enforcing free tier limit of ${formatFileSize(freeTierLimit)}`);
+      setSubscriptionLimit(freeTierLimit);
+      setRemainingStorage(freeTierLimit);
     }
   }, [profile, maxSize]);
 
@@ -74,16 +83,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           const fileSize = file.size;
 
           // Check if file exceeds subscription limit
-          if (profile && fileSize > profile.file_size_limit) {
-            const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
-            const errorMessage = `File size (${formatFileSize(fileSize)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+          if (fileSize > subscriptionLimit) {
+            let errorMessage;
+
+            if (profile) {
+              // Authenticated user with profile
+              const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+              errorMessage = `File size (${formatFileSize(fileSize)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+            } else {
+              // Unauthenticated user - free tier limit
+              errorMessage = `File size (${formatFileSize(fileSize)}) exceeds the free plan limit of ${formatFileSize(subscriptionLimit)}.`;
+            }
+
             toast.error(errorMessage);
             if (onFileSizeError) onFileSizeError(errorMessage);
             setShowLimitInfo(true);
             return;
           }
 
-          // Check if file exceeds remaining storage
+          // Check if file exceeds remaining storage (only for authenticated users)
           if (profile && fileSize > (profile.file_size_limit - profile.usage)) {
             const errorMessage = `File size (${formatFileSize(fileSize)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
             toast.error(errorMessage);
@@ -113,16 +131,25 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         const totalSize = acceptedFiles.reduce((sum, file) => sum + file.size, 0);
 
         // Check if total size exceeds subscription limit
-        if (profile && totalSize > profile.file_size_limit) {
-          const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
-          const errorMessage = `Total file size (${formatFileSize(totalSize)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+        if (totalSize > subscriptionLimit) {
+          let errorMessage;
+
+          if (profile) {
+            // Authenticated user with profile
+            const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
+            errorMessage = `Total file size (${formatFileSize(totalSize)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+          } else {
+            // Unauthenticated user - free tier limit
+            errorMessage = `Total file size (${formatFileSize(totalSize)}) exceeds the free plan limit of ${formatFileSize(subscriptionLimit)}.`;
+          }
+
           toast.error(errorMessage);
           if (onFileSizeError) onFileSizeError(errorMessage);
           setShowLimitInfo(true);
           return;
         }
 
-        // Check if total size exceeds remaining storage
+        // Check if total size exceeds remaining storage (only for authenticated users)
         if (profile && totalSize > (profile.file_size_limit - profile.usage)) {
           const errorMessage = `Total file size (${formatFileSize(totalSize)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
           toast.error(errorMessage);
@@ -149,13 +176,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
     maxFiles,
-    maxSize: profile ? profile.file_size_limit : maxSize, // Use subscription limit if available
+    maxSize: subscriptionLimit, // Always use the subscription limit (defaults to free tier if no profile)
     accept,
     multiple,
   });
 
   // Calculate effective max size (either from props or subscription)
-  const effectiveMaxSize = profile ? Math.min(maxSize, profile.file_size_limit) : maxSize;
+  const effectiveMaxSize = Math.min(maxSize, subscriptionLimit);
 
   // Get subscription tier name
   const getSubscriptionTierName = () => {
@@ -165,8 +192,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
   return (
     <div className="w-full">
-      {/* Subscription Limit Info */}
-      {profile && (
+      {/* Subscription Limit Info - For authenticated users */}
+      {profile ? (
         <div className="mb-2 flex items-center justify-between">
           <div className="text-xs text-gray-500">
             <span className="font-medium">{getSubscriptionTierName()} Plan: </span>
@@ -177,9 +204,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             <span>{formatFileSize(profile.usage)} / {formatFileSize(profile.file_size_limit)} used</span>
           </div>
         </div>
+      ) : (
+        /* Free tier info for unauthenticated users */
+        <div className="mb-2 flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            <span className="font-medium">Free Plan: </span>
+            <span>{formatFileSize(subscriptionLimit)} max file size</span>
+          </div>
+          <div className="text-xs text-gray-500">
+            <a href="/login" className="text-primary-600 hover:text-primary-500">
+              Log in for more storage
+            </a>
+          </div>
+        </div>
       )}
 
-      {/* Storage Usage Bar */}
+      {/* Storage Usage Bar - Only for authenticated users */}
       {profile && (
         <div className="mb-4">
           <div className="h-1.5 w-full rounded-full bg-gray-200">
@@ -220,9 +260,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         </p>
 
         {/* Show remaining storage */}
-        {profile && (
+        {profile ? (
           <p className="mt-1 text-xs text-gray-500">
             Remaining storage: {formatFileSize(Math.max(0, profile.file_size_limit - profile.usage))}
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-gray-500">
+            Free tier limit: {formatFileSize(subscriptionLimit)}
           </p>
         )}
       </div>
@@ -264,7 +308,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       )}
 
       {/* Upgrade Prompt */}
-      {showLimitInfo && profile && (
+      {showLimitInfo && (
         <div className="mt-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -273,20 +317,49 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">File Size Limit Reached</h3>
               <div className="mt-2 text-sm text-yellow-700">
-                <p>
-                  Your current {getSubscriptionTierName()} plan allows files up to {formatFileSize(profile.file_size_limit)}.
-                </p>
-                <p className="mt-1">
-                  You have used {formatFileSize(profile.usage)} of your {formatFileSize(profile.file_size_limit)} storage.
-                </p>
-                <div className="mt-4">
-                  <a
-                    href="/pricing"
-                    className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-                  >
-                    Upgrade Your Plan
-                  </a>
-                </div>
+                {profile ? (
+                  /* For authenticated users */
+                  <>
+                    <p>
+                      Your current {getSubscriptionTierName()} plan allows files up to {formatFileSize(profile.file_size_limit)}.
+                    </p>
+                    <p className="mt-1">
+                      You have used {formatFileSize(profile.usage)} of your {formatFileSize(profile.file_size_limit)} storage.
+                    </p>
+                    <div className="mt-4">
+                      <a
+                        href="/pricing"
+                        className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                      >
+                        Upgrade Your Plan
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  /* For unauthenticated users */
+                  <>
+                    <p>
+                      The free plan allows files up to {formatFileSize(subscriptionLimit)}.
+                    </p>
+                    <p className="mt-1">
+                      Sign up or log in to access higher file size limits.
+                    </p>
+                    <div className="mt-4 flex space-x-4">
+                      <a
+                        href="/login"
+                        className="rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+                      >
+                        Log In
+                      </a>
+                      <a
+                        href="/signup"
+                        className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-primary-600 shadow-sm ring-1 ring-inset ring-primary-300 hover:bg-gray-50"
+                      >
+                        Sign Up
+                      </a>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
