@@ -31,8 +31,9 @@ export default function MergePDFsPage() {
       setIsMerging(true);
       setStorageUpdated(false);
 
-      // Show a loading toast
-      toast.loading('Merging PDFs...', { id: 'merge-toast' });
+      // Show a loading toast with a unique ID based on timestamp
+      const toastId = `merge-toast-${Date.now()}`;
+      toast.loading('Merging PDFs...', { id: toastId });
 
       console.log('Starting PDF merge process...');
       const merged = await mergePDFs(files);
@@ -68,13 +69,13 @@ export default function MergePDFsPage() {
       }
 
       // Dismiss the loading toast
-      toast.dismiss('merge-toast');
+      toast.dismiss(toastId);
       toast.success('PDFs merged successfully!');
     } catch (error) {
       console.error('Error merging PDFs:', error);
 
       // Dismiss the loading toast
-      toast.dismiss('merge-toast');
+      toast.dismiss(toastId);
 
       // Show a more detailed error message
       let errorMessage = 'Failed to merge PDFs. Please try again.';

@@ -147,8 +147,9 @@ export default function CompressPDFPage() {
       const qualityValue = qualityMap[compressionLevel];
       console.log(`Using quality value: ${qualityValue}`);
 
-      // Show a toast to indicate compression has started
-      toast.loading('Compressing your PDF...', { id: 'compression-toast' });
+      // Show a toast to indicate compression has started with a unique ID
+      const toastId = `compression-toast-${Date.now()}`;
+      toast.loading('Compressing your PDF...', { id: toastId });
 
       // Add a small delay to ensure UI updates before heavy processing
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -186,13 +187,13 @@ export default function CompressPDFPage() {
       }
 
       // Dismiss the loading toast and show success
-      toast.dismiss('compression-toast');
+      toast.dismiss(toastId);
       toast.success('PDF compressed successfully!');
     } catch (error) {
       console.error('Error in handleCompress function:', error);
 
       // Dismiss the loading toast
-      toast.dismiss('compression-toast');
+      toast.dismiss(toastId);
 
       // Show a more detailed error message
       let errorMessage = 'Failed to compress PDF. Please try again.';

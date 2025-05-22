@@ -127,7 +127,7 @@ export default function DashboardPage() {
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', currentUser.id)
+          .eq('user_id', currentUser.id)
           .single();
 
         if (error) {
@@ -167,6 +167,25 @@ export default function DashboardPage() {
       setErrorMessage(error.message || 'Failed to load user data. Please try again.');
     }
   };
+
+  // Listen for storage usage updates
+  useEffect(() => {
+    // Create a memoized version of fetchUserData that doesn't change on re-renders
+    const refreshDashboardData = () => {
+      console.log('Storage usage update detected, refreshing dashboard data');
+      fetchUserData();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage-usage-updated', refreshDashboardData);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage-usage-updated', refreshDashboardData);
+      }
+    };
+  }, []);
 
   // Check authentication and load user data
   useEffect(() => {
