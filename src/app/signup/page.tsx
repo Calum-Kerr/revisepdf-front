@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SignupPage() {
   const { t } = useTranslation();
@@ -14,6 +16,15 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { signUp, user, session } = useAuth();
+  const router = useRouter();
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    if (user && session) {
+      router.push('/dashboard');
+    }
+  }, [user, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,37 +42,10 @@ export default function SignupPage() {
     try {
       setIsLoading(true);
 
-      // Call the Supabase auth API
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
-          data: {
-            email: email,
-          },
-        },
-      });
+      // Use the signUp method from AuthContext
+      await signUp(email, password);
 
-      if (error) {
-        throw error;
-      }
-
-      // Check if email confirmation is required
-      const isEmailConfirmationRequired = !data.session;
-
-      if (isEmailConfirmationRequired) {
-        toast.success('Account created! Please check your email to confirm your account.');
-      } else {
-        toast.success('Account created successfully!');
-      }
-
-      // Add a small delay before redirecting
-      setTimeout(() => {
-        // Redirect to login page after successful signup
-        window.location.href = '/login';
-      }, 500);
-
+      // The AuthContext will handle the redirect and session management
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Signup failed. Please try again.');
@@ -73,24 +57,10 @@ export default function SignupPage() {
     try {
       setIsLoading(true);
 
-      // Call the Supabase auth signInWithOAuth method
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
+      // Use the signInWithGoogle method from AuthContext
+      await signInWithGoogle();
 
-      if (error) {
-        throw error;
-      }
-
-      // The user will be redirected to Google for authentication
-      // No need to set isLoading to false here as the page will redirect
+      // The AuthContext will handle the redirect and session management
     } catch (error: any) {
       console.error('Google signup error:', error);
       toast.error(error.message || 'Google signup failed. Please try again.');
@@ -169,6 +139,7 @@ export default function SignupPage() {
                   type="submit"
                   fullWidth
                   isLoading={isLoading}
+                  className="font-semibold shadow-md"
                 >
                   {t('auth.signup')}
                 </Button>
@@ -192,6 +163,7 @@ export default function SignupPage() {
                   variant="outline"
                   onClick={handleGoogleSignup}
                   isLoading={isLoading}
+                  className="font-semibold shadow-sm border-gray-400"
                 >
                   <svg className="h-5 w-5 mr-2" aria-hidden="true" viewBox="0 0 24 24">
                     <path

@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const next = requestUrl.searchParams.get('next') || '/dashboard';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin;
 
   if (code) {
     const cookieStore = cookies();
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       if (error) {
         console.error('Error exchanging code for session:', error);
         // If there's an error, redirect to login page
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/login', appUrl));
       }
 
       // Get the current session to verify authentication worked
@@ -26,17 +27,30 @@ export async function GET(request: NextRequest) {
 
       if (!session) {
         // If no session, redirect to login page
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/login', appUrl));
       }
 
-      // URL to redirect to after sign in process completes
-      return NextResponse.redirect(new URL(next, process.env.NEXT_PUBLIC_APP_URL || request.url));
+      // Set a cookie to persist the session
+      const response = NextResponse.redirect(new URL(next, appUrl));
+
+      // Set secure cookie flags for production
+      response.cookies.set({
+        name: 'supabase-auth-session',
+        value: 'authenticated',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        path: '/',
+      });
+
+      return response;
     } catch (error) {
       console.error('Error in auth callback:', error);
-      return NextResponse.redirect(new URL('/login', request.url));
+      return NextResponse.redirect(new URL('/login', appUrl));
     }
   }
 
   // If no code is present, redirect to home page
-  return NextResponse.redirect(new URL('/', request.url));
+  return NextResponse.redirect(new URL('/', appUrl));
 }

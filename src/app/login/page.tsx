@@ -1,18 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { signIn, user, session } = useAuth();
+  const router = useRouter();
+
+  // Check if user is already authenticated
+  useEffect(() => {
+    if (user && session) {
+      router.push('/dashboard');
+    }
+  }, [user, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,29 +36,10 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
 
-      // Call the Supabase auth API
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Use the signIn method from AuthContext
+      await signIn(email, password);
 
-      if (error) {
-        throw error;
-      }
-
-      // Check if we have a session
-      if (!data.session) {
-        throw new Error('No session returned from authentication');
-      }
-
-      toast.success('Login successful!');
-
-      // Add a small delay before redirecting to ensure state updates
-      setTimeout(() => {
-        // Redirect to dashboard after successful login
-        window.location.href = '/dashboard';
-      }, 500);
-
+      // The AuthContext will handle the redirect and session management
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed. Please check your credentials and try again.');
@@ -59,24 +51,10 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
 
-      // Call the Supabase auth signInWithOAuth method
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
+      // Use the signInWithGoogle method from AuthContext
+      await signInWithGoogle();
 
-      if (error) {
-        throw error;
-      }
-
-      // The user will be redirected to Google for authentication
-      // No need to set isLoading to false here as the page will redirect
+      // The AuthContext will handle the redirect and session management
     } catch (error: any) {
       console.error('Google login error:', error);
       toast.error(error.message || 'Google login failed. Please try again.');
@@ -157,6 +135,7 @@ export default function LoginPage() {
                   type="submit"
                   fullWidth
                   isLoading={isLoading}
+                  className="font-semibold shadow-md"
                 >
                   {t('auth.login')}
                 </Button>
@@ -180,6 +159,7 @@ export default function LoginPage() {
                   variant="outline"
                   onClick={handleGoogleLogin}
                   isLoading={isLoading}
+                  className="font-semibold shadow-sm border-gray-400"
                 >
                   <svg className="h-5 w-5 mr-2" aria-hidden="true" viewBox="0 0 24 24">
                     <path
