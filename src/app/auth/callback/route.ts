@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
+  const type = requestUrl.searchParams.get('type'); // Get the type parameter (signup, recovery, etc.)
   const next = requestUrl.searchParams.get('next') || '/dashboard';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || requestUrl.origin;
 
@@ -18,8 +19,10 @@ export async function GET(request: NextRequest) {
 
       if (error) {
         console.error('Error exchanging code for session:', error);
-        // If there's an error, redirect to login page
-        return NextResponse.redirect(new URL('/login', appUrl));
+        // If there's an error, redirect to login page with error message
+        const loginUrl = new URL('/login', appUrl);
+        loginUrl.searchParams.set('error', 'auth_error');
+        return NextResponse.redirect(loginUrl);
       }
 
       // Get the current session to verify authentication worked
@@ -27,11 +30,27 @@ export async function GET(request: NextRequest) {
 
       if (!session) {
         // If no session, redirect to login page
-        return NextResponse.redirect(new URL('/login', appUrl));
+        const loginUrl = new URL('/login', appUrl);
+        loginUrl.searchParams.set('error', 'no_session');
+        return NextResponse.redirect(loginUrl);
+      }
+
+      // Determine the redirect URL based on the type of verification
+      let redirectUrl;
+      if (type === 'signup') {
+        // For email verification after signup, redirect to login with success message
+        redirectUrl = new URL('/login', appUrl);
+        redirectUrl.searchParams.set('verified', 'true');
+      } else if (type === 'recovery') {
+        // For password recovery, redirect to reset password page
+        redirectUrl = new URL('/reset-password', appUrl);
+      } else {
+        // For other types (like magic link), redirect to dashboard
+        redirectUrl = new URL(next, appUrl);
       }
 
       // Set a cookie to persist the session
-      const response = NextResponse.redirect(new URL(next, appUrl));
+      const response = NextResponse.redirect(redirectUrl);
 
       // Set secure cookie flags for production
       response.cookies.set({
@@ -55,10 +74,23 @@ export async function GET(request: NextRequest) {
         path: '/',
       });
 
+      // Set a verification status cookie for client-side detection
+      response.cookies.set({
+        name: 'auth-verification-status',
+        value: type || 'unknown',
+        httpOnly: false, // Allow JavaScript access
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60, // Short-lived cookie (1 minute)
+        path: '/',
+      });
+
       return response;
     } catch (error) {
       console.error('Error in auth callback:', error);
-      return NextResponse.redirect(new URL('/login', appUrl));
+      const loginUrl = new URL('/login', appUrl);
+      loginUrl.searchParams.set('error', 'unexpected_error');
+      return NextResponse.redirect(loginUrl);
     }
   }
 

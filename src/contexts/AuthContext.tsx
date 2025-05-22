@@ -119,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSignUp = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { user, error } = await signUp(email, password);
+      const { user, error, isEmailConfirmationRequired } = await signUp(email, password);
 
       if (error) {
         toast.error(error.message);
@@ -127,12 +127,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (user) {
-        toast.success('Account created! Please check your email to confirm your account.');
-        router.push('/login');
+        if (isEmailConfirmationRequired) {
+          toast.success('Account created! Please check your email to confirm your account.', {
+            duration: 6000 // Show for 6 seconds
+          });
+
+          // Show a more detailed message
+          setTimeout(() => {
+            toast('Click the verification link in your email to complete registration.', {
+              icon: '📧',
+              duration: 5000
+            });
+          }, 1000);
+
+          router.push('/login');
+        } else {
+          // If email confirmation is not required, set the user and session
+          setUser(user);
+          toast.success('Account created successfully!');
+          router.push('/dashboard');
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error signing up:', error);
-      toast.error('Failed to create account. Please try again.');
+      toast.error(error.message || 'Failed to create account. Please try again.');
     } finally {
       setIsLoading(false);
     }

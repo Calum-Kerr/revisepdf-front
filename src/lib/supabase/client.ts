@@ -108,7 +108,7 @@ export const updateUserSubscription = async (
 export const signUp = async (email: string, password: string) => {
   // Always use the production URL for email verification to avoid localhost redirects
   const productionUrl = 'https://revisepdf-app-779c79ba0815.herokuapp.com';
-  const redirectUrl = `${productionUrl}/auth/callback`;
+  const redirectUrl = `${productionUrl}/auth/callback?type=signup`;
 
   console.log('Using redirect URL for signup:', redirectUrl);
 
@@ -128,12 +128,25 @@ export const signUp = async (email: string, password: string) => {
     return { user: null, error };
   }
 
+  // Check if email confirmation is required
+  const isEmailConfirmationRequired = !data.session;
+
   if (data.user) {
     // Create a user profile
     await createUserProfile(data.user.id, email);
+
+    // Log the verification status
+    console.log('Email confirmation required:', isEmailConfirmationRequired);
+    console.log('User ID:', data.user.id);
+    console.log('Email confirmation sent to:', email);
   }
 
-  return { user: data.user, error: null };
+  return {
+    user: data.user,
+    session: data.session,
+    isEmailConfirmationRequired,
+    error: null
+  };
 };
 
 export const signIn = async (email: string, password: string) => {

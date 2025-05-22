@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -17,6 +17,33 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, user, session } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check URL parameters for verification status or errors
+  useEffect(() => {
+    const verified = searchParams.get('verified');
+    const error = searchParams.get('error');
+
+    if (verified === 'true') {
+      toast.success('Email verified successfully! You can now log in.');
+    }
+
+    if (error) {
+      switch (error) {
+        case 'auth_error':
+          toast.error('Authentication error. Please try again.');
+          break;
+        case 'no_session':
+          toast.error('Session error. Please try logging in again.');
+          break;
+        case 'unexpected_error':
+          toast.error('An unexpected error occurred. Please try again.');
+          break;
+        default:
+          toast.error('Error during authentication. Please try again.');
+      }
+    }
+  }, [searchParams]);
 
   // Check if user is already authenticated
   useEffect(() => {
