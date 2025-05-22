@@ -100,17 +100,21 @@ export default function DashboardPage() {
     try {
       setLoadingState('loading');
 
-      // Verify session directly with Supabase as a fallback
-      if (!session) {
-        const { data: { session: supabaseSession } } = await supabase.auth.getSession();
-        if (!supabaseSession) {
-          setLoadingState('error');
-          setErrorMessage('No active session found. Please log in again.');
-          return;
-        }
+      // Get the current session directly from Supabase
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+      if (!currentSession) {
+        console.error('No active session found in fetchUserData');
+        setLoadingState('error');
+        setErrorMessage('No active session found. Please log in again.');
+        return;
       }
 
-      if (!user) {
+      // Get the current user from the session if not available in context
+      const currentUser = user || currentSession.user;
+
+      if (!currentUser) {
+        console.error('No user information available');
         setLoadingState('error');
         setErrorMessage('User information not available. Please log in again.');
         return;
@@ -119,15 +123,36 @@ export default function DashboardPage() {
       // Update user data with available information
       const updatedUserData = {
         ...defaultUserData,
-        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-        email: user.email || 'No email available',
+        name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User',
+        email: currentUser.email || 'No email available',
       };
 
+      // If we don't have a profile in context, try to fetch it
+      let userProfile = profile;
+      if (!userProfile) {
+        try {
+          console.log('Fetching user profile directly');
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentUser.id)
+            .single();
+
+          userProfile = data;
+          console.log('Fetched profile:', userProfile);
+        } catch (profileError) {
+          console.error('Error fetching profile:', profileError);
+          // Continue with default values if profile fetch fails
+        }
+      }
+
       // If profile is available, update subscription info
-      if (profile) {
-        updatedUserData.plan = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
-        updatedUserData.usedStorage = profile.usage / (1024 * 1024); // Convert bytes to MB
-        updatedUserData.totalStorage = profile.file_size_limit / (1024 * 1024); // Convert bytes to MB
+      if (userProfile) {
+        updatedUserData.plan = userProfile.subscription_tier?.charAt(0).toUpperCase() +
+                              userProfile.subscription_tier?.slice(1) || 'Free';
+        updatedUserData.usedStorage = userProfile.usage ? userProfile.usage / (1024 * 1024) : 0; // Convert bytes to MB
+        updatedUserData.totalStorage = userProfile.file_size_limit ?
+                                     userProfile.file_size_limit / (1024 * 1024) : 5; // Convert bytes to MB
       }
 
       setUserData(updatedUserData);
@@ -146,16 +171,36 @@ export default function DashboardPage() {
       return;
     }
 
-    // If not authenticated, redirect to login
-    if (!user || !session) {
-      console.log('No authenticated user found, redirecting to login');
-      router.push('/login?redirect=/dashboard');
-      return;
-    }
+    const checkAndLoadData = async () => {
+      try {
+        // Direct check with Supabase to ensure we have a valid session
+        const { data: { session: supabaseSession } } = await supabase.auth.getSession();
 
-    // Fetch user data
-    fetchUserData();
-  }, [user, session, isLoading, router]);
+        if (supabaseSession) {
+          console.log('Valid session found directly from Supabase');
+
+          // If we have a session but no user in context, refresh the session
+          if (!user) {
+            const { data } = await supabase.auth.refreshSession();
+            console.log('Session refreshed:', !!data.session);
+          }
+
+          // Proceed with loading user data
+          fetchUserData();
+        } else {
+          console.log('No valid session found, redirecting to login');
+          // Force a hard redirect to login to avoid middleware issues
+          window.location.href = '/login?redirect=/dashboard';
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        setLoadingState('error');
+        setErrorMessage('Authentication error. Please try logging in again.');
+      }
+    };
+
+    checkAndLoadData();
+  }, [isLoading, user, fetchUserData]);
 
   // Helper function to get the appropriate icon for file types
   const getToolIcon = (type: string) => {
