@@ -37,10 +37,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { user, session, profile } = await getCurrentUser();
-        setUser(user);
-        setSession(session);
-        setProfile(profile || null);
+        // First check if we have a session in localStorage
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+
+        if (existingSession) {
+          console.log('Found existing session:', existingSession.user.id);
+          setSession(existingSession);
+          setUser(existingSession.user);
+
+          // Fetch the user profile
+          const { profile } = await getCurrentUser();
+          setProfile(profile || null);
+        } else {
+          console.log('No existing session found');
+          setUser(null);
+          setSession(null);
+          setProfile(null);
+        }
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -53,13 +66,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setSession(session);
-        setUser(session?.user || null);
+        console.log('Auth state changed:', event, session?.user?.id);
 
-        if (session?.user) {
-          const { profile } = await getCurrentUser();
-          setProfile(profile || null);
-        } else {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setSession(session);
+          setUser(session?.user || null);
+
+          if (session?.user) {
+            // Fetch the user profile
+            const { profile } = await getCurrentUser();
+            setProfile(profile || null);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setSession(null);
           setProfile(null);
         }
 
@@ -75,6 +95,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSignIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Attempting to sign in with email:', email);
+
       const { session, user, error } = await signIn(email, password);
 
       if (error) {
@@ -89,6 +111,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      console.log('Sign in successful, user ID:', user.id);
+      console.log('Session:', session.access_token ? 'Valid access token' : 'No access token');
+
       // Set the user and session state
       setUser(user);
       setSession(session);
@@ -97,17 +122,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Get the user profile
         const { profile } = await getCurrentUser();
         setProfile(profile);
+        console.log('User profile loaded:', profile?.id);
       } catch (profileError) {
         console.error('Error fetching user profile:', profileError);
         // Continue even if profile fetch fails
       }
 
+      // Explicitly set the session in localStorage to ensure persistence
+      localStorage.setItem('supabase-auth-token', JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }));
+
       toast.success('Logged in successfully!');
 
       // Add a small delay before redirecting to ensure state updates
       setTimeout(() => {
+        console.log('Redirecting to dashboard...');
         router.push('/dashboard');
-      }, 500);
+      }, 1000);
     } catch (error: any) {
       console.error('Unexpected error during sign in:', error);
       toast.error('An unexpected error occurred. Please try again.');

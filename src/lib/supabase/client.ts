@@ -7,7 +7,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase environment variables. Please check your .env file.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client with persistent session storage
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    storageKey: 'supabase-auth-token',
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
 export type SubscriptionTier = 'free' | 'basic' | 'premium';
 

@@ -1,36 +1,57 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/Button';
-import { 
-  DocumentArrowDownIcon, 
-  DocumentArrowUpIcon, 
-  DocumentDuplicateIcon, 
+import {
+  DocumentArrowDownIcon,
+  DocumentArrowUpIcon,
+  DocumentDuplicateIcon,
   DocumentMinusIcon,
   ClockIcon,
   CreditCardIcon,
   UserCircleIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function DashboardPage() {
   const { t } = useTranslation();
-
-  // Mock user data
-  const user = {
-    name: 'John Doe',
-    email: 'john.doe@example.com',
-    plan: 'Basic',
-    usedStorage: 12.5, // MB
-    totalStorage: 20, // MB
+  const { user, profile, session, isLoading } = useAuth();
+  const router = useRouter();
+  const [userData, setUserData] = useState({
+    name: '',
+    email: '',
+    plan: 'Free',
+    usedStorage: 0, // MB
+    totalStorage: 5, // MB
     recentFiles: [
       { id: 1, name: 'business_report.pdf', size: 2.4, date: '2023-05-15', type: 'compress' },
       { id: 2, name: 'contract_final.pdf', size: 1.8, date: '2023-05-14', type: 'split' },
       { id: 3, name: 'presentation.pdf', size: 3.2, date: '2023-05-12', type: 'merge' },
     ],
-  };
+  });
+
+  // Check if user is authenticated
+  useEffect(() => {
+    if (!isLoading && (!user || !session)) {
+      toast.error('Please log in to access the dashboard');
+      router.push('/login');
+    } else if (user && profile) {
+      // Update user data with actual user information
+      setUserData({
+        ...userData,
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+        email: user.email || '',
+        plan: profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1),
+        usedStorage: profile.usage / (1024 * 1024), // Convert bytes to MB
+        totalStorage: profile.file_size_limit / (1024 * 1024), // Convert bytes to MB
+      });
+    }
+  }, [user, profile, session, isLoading, router]);
 
   const getToolIcon = (type: string) => {
     switch (type) {
@@ -64,8 +85,8 @@ export default function DashboardPage() {
               <div className="flex items-center">
                 <UserCircleIcon className="h-12 w-12 text-gray-400" />
                 <div className="ml-4">
-                  <h2 className="text-lg font-medium text-gray-900">{user.name}</h2>
-                  <p className="text-sm text-gray-500">{user.email}</p>
+                  <h2 className="text-lg font-medium text-gray-900">{userData.name}</h2>
+                  <p className="text-sm text-gray-500">{userData.email}</p>
                 </div>
               </div>
               <div className="mt-4">
@@ -82,9 +103,9 @@ export default function DashboardPage() {
               <div className="flex items-center">
                 <CreditCardIcon className="h-8 w-8 text-primary-500" />
                 <div className="ml-4">
-                  <h2 className="text-lg font-medium text-gray-900">Current Plan: {user.plan}</h2>
+                  <h2 className="text-lg font-medium text-gray-900">Current Plan: {userData.plan}</h2>
                   <p className="text-sm text-gray-500">
-                    {user.usedStorage.toFixed(1)}MB / {user.totalStorage}MB used
+                    {userData.usedStorage.toFixed(1)}MB / {userData.totalStorage}MB used
                   </p>
                 </div>
               </div>
@@ -92,7 +113,7 @@ export default function DashboardPage() {
                 <div className="h-2 w-full rounded-full bg-gray-200">
                   <div
                     className="h-2 rounded-full bg-primary-500"
-                    style={{ width: `${(user.usedStorage / user.totalStorage) * 100}%` }}
+                    style={{ width: `${(userData.usedStorage / userData.totalStorage) * 100}%` }}
                   ></div>
                 </div>
               </div>
@@ -160,7 +181,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {user.recentFiles.map((file) => (
+                  {userData.recentFiles.map((file) => (
                     <tr key={file.id}>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center">

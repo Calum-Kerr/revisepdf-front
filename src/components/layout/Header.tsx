@@ -3,10 +3,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
-import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
-import { usePathname } from 'next/navigation';
+import { Bars3Icon, XMarkIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '../ui/Button';
 import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface NavItem {
   name: string;
@@ -25,6 +26,13 @@ export const Header: React.FC = () => {
   const { t } = useTranslation();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, session, signOut } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/');
+  };
 
   return (
     <header className="bg-white shadow-sm">
@@ -61,16 +69,35 @@ export const Header: React.FC = () => {
         </div>
         <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
           <LanguageSwitcher />
-          <Link href="/login">
-            <Button variant="outline" size="sm">
-              {t('navigation.login')}
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button variant="primary" size="sm">
-              {t('navigation.signup')}
-            </Button>
-          </Link>
+
+          {user && session ? (
+            <div className="flex items-center gap-x-4">
+              <Link href="/dashboard">
+                <div className="flex items-center gap-x-2">
+                  <UserCircleIcon className="h-6 w-6 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {user.email?.split('@')[0]}
+                  </span>
+                </div>
+              </Link>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                {t('navigation.logout')}
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  {t('navigation.login')}
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button variant="primary" size="sm">
+                  {t('navigation.signup')}
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </nav>
       {/* Mobile menu */}
@@ -110,20 +137,44 @@ export const Header: React.FC = () => {
                   ))}
                 </div>
                 <div className="py-6">
-                  <Link
-                    href="/login"
-                    className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t('navigation.login')}
-                  </Link>
-                  <Link
-                    href="/signup"
-                    className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    {t('navigation.signup')}
-                  </Link>
+                  {user && session ? (
+                    <>
+                      <Link
+                        href="/dashboard"
+                        className="-mx-3 flex items-center rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        <UserCircleIcon className="h-6 w-6 mr-2 text-gray-500" />
+                        {user.email?.split('@')[0]}
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleSignOut();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                      >
+                        {t('navigation.logout')}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {t('navigation.login')}
+                      </Link>
+                      <Link
+                        href="/signup"
+                        className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-gray-900 hover:bg-gray-50"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        {t('navigation.signup')}
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
