@@ -1,0 +1,126 @@
+{
+  "app_name": "RevisePDF",
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "tools": "Tools",
+    "pricing": "Pricing",
+    "login": "Login",
+    "signup": "Sign Up",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "home": {
+    "hero_title": "Powerful PDF Tools at Your Fingertips",
+    "hero_subtitle": "Compress, merge, split, and convert PDFs with ease",
+    "get_started": "Get Started",
+    "learn_more": "Learn More"
+  },
+  "tools": {
+    "compress": {
+      "title": "Compress PDF",
+      "description": "Reduce file size while maintaining quality",
+      "upload_prompt": "Drag & drop your PDF here or click to browse",
+      "compress_button": "Compress PDF",
+      "download_button": "Download Compressed PDF"
+    },
+    "merge": {
+      "title": "Merge PDFs",
+      "description": "Combine multiple PDFs into a single document",
+      "upload_prompt": "Drag & drop your PDFs here or click to browse",
+      "merge_button": "Merge PDFs",
+      "download_button": "Download Merged PDF"
+    },
+    "split": {
+      "title": "Split PDF",
+      "description": "Extract pages or split a PDF into multiple files",
+      "upload_prompt": "Drag & drop your PDF here or click to browse",
+      "split_button": "Split PDF",
+      "download_button": "Download Split PDFs"
+    },
+    "convert": {
+      "title": "Convert PDF",
+      "description": "Convert PDFs to other formats and vice versa",
+      "upload_prompt": "Drag & drop your file here or click to browse",
+      "convert_button": "Convert File",
+      "download_button": "Download Converted File"
+    }
+  },
+  "pricing": {
+    "title": "Choose Your Plan",
+    "subtitle": "Select the plan that fits your needs",
+    "free": {
+      "title": "Free",
+      "price": "£0",
+      "description": "Basic PDF tools for occasional use",
+      "features": [
+        "5MB file size limit",
+        "Basic compression",
+        "Basic merging",
+        "Basic splitting",
+        "Basic conversion"
+      ]
+    },
+    "basic": {
+      "title": "Basic",
+      "price": "£4.99",
+      "period": "per month",
+      "description": "Enhanced PDF tools for regular use",
+      "features": [
+        "20MB file size limit",
+        "Advanced compression",
+        "Advanced merging",
+        "Advanced splitting",
+        "Advanced conversion",
+        "Batch processing"
+      ]
+    },
+    "premium": {
+      "title": "Premium",
+      "price": "£9.99",
+      "period": "per month",
+      "description": "Professional PDF tools for power users",
+      "features": [
+        "100MB file size limit",
+        "Premium compression",
+        "Premium merging",
+        "Premium splitting",
+        "Premium conversion",
+        "Batch processing",
+        "Priority support"
+      ]
+    }
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "forgot_password": "Forgot Password?",
+    "or_continue_with": "Or continue with",
+    "google": "Google",
+    "already_have_account": "Already have an account?",
+    "dont_have_account": "Don't have an account?"
+  },
+  "profile": {
+    "title": "Profile",
+    "personal_info": "Personal Information",
+    "name": "Name",
+    "email": "Email",
+    "subscription": "Subscription",
+    "current_plan": "Current Plan",
+    "usage": "Usage",
+    "file_size_limit": "File Size Limit",
+    "used": "Used",
+    "remaining": "Remaining",
+    "update_profile": "Update Profile",
+    "change_password": "Change Password"
+  },
+  "footer": {
+    "copyright": "© 2025 RevisePDF. All rights reserved.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "contact": "Contact Us"
+  }
+}

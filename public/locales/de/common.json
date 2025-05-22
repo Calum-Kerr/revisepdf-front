@@ -1,0 +1,126 @@
+{
+  "app_name": "RevisePDF",
+  "navigation": {
+    "home": "Startseite",
+    "dashboard": "Dashboard",
+    "tools": "Werkzeuge",
+    "pricing": "Preise",
+    "login": "Anmelden",
+    "signup": "Registrieren",
+    "profile": "Profil",
+    "logout": "Abmelden"
+  },
+  "home": {
+    "hero_title": "Leistungsstarke PDF-Werkzeuge an Ihren Fingerspitzen",
+    "hero_subtitle": "Komprimieren, zusammenführen, teilen und konvertieren Sie PDFs mit Leichtigkeit",
+    "get_started": "Loslegen",
+    "learn_more": "Mehr erfahren"
+  },
+  "tools": {
+    "compress": {
+      "title": "PDF komprimieren",
+      "description": "Reduzieren Sie die Dateigröße bei gleichbleibender Qualität",
+      "upload_prompt": "Ziehen Sie Ihre PDF hierher oder klicken Sie zum Durchsuchen",
+      "compress_button": "PDF komprimieren",
+      "download_button": "Komprimierte PDF herunterladen"
+    },
+    "merge": {
+      "title": "PDFs zusammenführen",
+      "description": "Kombinieren Sie mehrere PDFs zu einem einzigen Dokument",
+      "upload_prompt": "Ziehen Sie Ihre PDFs hierher oder klicken Sie zum Durchsuchen",
+      "merge_button": "PDFs zusammenführen",
+      "download_button": "Zusammengeführte PDF herunterladen"
+    },
+    "split": {
+      "title": "PDF teilen",
+      "description": "Extrahieren Sie Seiten oder teilen Sie eine PDF in mehrere Dateien",
+      "upload_prompt": "Ziehen Sie Ihre PDF hierher oder klicken Sie zum Durchsuchen",
+      "split_button": "PDF teilen",
+      "download_button": "Geteilte PDFs herunterladen"
+    },
+    "convert": {
+      "title": "PDF konvertieren",
+      "description": "Konvertieren Sie PDFs in andere Formate und umgekehrt",
+      "upload_prompt": "Ziehen Sie Ihre Datei hierher oder klicken Sie zum Durchsuchen",
+      "convert_button": "Datei konvertieren",
+      "download_button": "Konvertierte Datei herunterladen"
+    }
+  },
+  "pricing": {
+    "title": "Wählen Sie Ihren Plan",
+    "subtitle": "Wählen Sie den Plan, der zu Ihren Bedürfnissen passt",
+    "free": {
+      "title": "Kostenlos",
+      "price": "0€",
+      "description": "Grundlegende PDF-Werkzeuge für gelegentliche Nutzung",
+      "features": [
+        "5MB Dateigrößenlimit",
+        "Grundlegende Komprimierung",
+        "Grundlegendes Zusammenführen",
+        "Grundlegendes Teilen",
+        "Grundlegende Konvertierung"
+      ]
+    },
+    "basic": {
+      "title": "Basic",
+      "price": "4,99€",
+      "period": "pro Monat",
+      "description": "Erweiterte PDF-Werkzeuge für regelmäßige Nutzung",
+      "features": [
+        "20MB Dateigrößenlimit",
+        "Erweiterte Komprimierung",
+        "Erweitertes Zusammenführen",
+        "Erweitertes Teilen",
+        "Erweiterte Konvertierung",
+        "Stapelverarbeitung"
+      ]
+    },
+    "premium": {
+      "title": "Premium",
+      "price": "9,99€",
+      "period": "pro Monat",
+      "description": "Professionelle PDF-Werkzeuge für Power-User",
+      "features": [
+        "100MB Dateigrößenlimit",
+        "Premium-Komprimierung",
+        "Premium-Zusammenführen",
+        "Premium-Teilen",
+        "Premium-Konvertierung",
+        "Stapelverarbeitung",
+        "Prioritäts-Support"
+      ]
+    }
+  },
+  "auth": {
+    "login": "Anmelden",
+    "signup": "Registrieren",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "confirm_password": "Passwort bestätigen",
+    "forgot_password": "Passwort vergessen?",
+    "or_continue_with": "Oder fortfahren mit",
+    "google": "Google",
+    "already_have_account": "Haben Sie bereits ein Konto?",
+    "dont_have_account": "Haben Sie noch kein Konto?"
+  },
+  "profile": {
+    "title": "Profil",
+    "personal_info": "Persönliche Informationen",
+    "name": "Name",
+    "email": "E-Mail",
+    "subscription": "Abonnement",
+    "current_plan": "Aktueller Plan",
+    "usage": "Nutzung",
+    "file_size_limit": "Dateigrößenlimit",
+    "used": "Verwendet",
+    "remaining": "Verbleibend",
+    "update_profile": "Profil aktualisieren",
+    "change_password": "Passwort ändern"
+  },
+  "footer": {
+    "copyright": "© 2025 RevisePDF. Alle Rechte vorbehalten.",
+    "terms": "Nutzungsbedingungen",
+    "privacy": "Datenschutzrichtlinie",
+    "contact": "Kontakt"
+  }
+}

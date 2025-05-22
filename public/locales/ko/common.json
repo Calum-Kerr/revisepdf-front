@@ -1,0 +1,126 @@
+{
+  "app_name": "RevisePDF",
+  "navigation": {
+    "home": "홈",
+    "dashboard": "대시보드",
+    "tools": "도구",
+    "pricing": "가격",
+    "login": "로그인",
+    "signup": "회원가입",
+    "profile": "프로필",
+    "logout": "로그아웃"
+  },
+  "home": {
+    "hero_title": "손끝에서 강력한 PDF 도구",
+    "hero_subtitle": "PDF를 쉽게 압축, 병합, 분할 및 변환하세요",
+    "get_started": "시작하기",
+    "learn_more": "더 알아보기"
+  },
+  "tools": {
+    "compress": {
+      "title": "PDF 압축",
+      "description": "품질을 유지하면서 파일 크기 줄이기",
+      "upload_prompt": "PDF를 여기에 끌어다 놓거나 클릭하여 찾아보기",
+      "compress_button": "PDF 압축",
+      "download_button": "압축된 PDF 다운로드"
+    },
+    "merge": {
+      "title": "PDF 병합",
+      "description": "여러 PDF를 하나의 문서로 결합",
+      "upload_prompt": "PDF를 여기에 끌어다 놓거나 클릭하여 찾아보기",
+      "merge_button": "PDF 병합",
+      "download_button": "병합된 PDF 다운로드"
+    },
+    "split": {
+      "title": "PDF 분할",
+      "description": "페이지 추출 또는 PDF를 여러 파일로 분할",
+      "upload_prompt": "PDF를 여기에 끌어다 놓거나 클릭하여 찾아보기",
+      "split_button": "PDF 분할",
+      "download_button": "분할된 PDF 다운로드"
+    },
+    "convert": {
+      "title": "PDF 변환",
+      "description": "PDF를 다른 형식으로 변환하거나 그 반대로 변환",
+      "upload_prompt": "파일을 여기에 끌어다 놓거나 클릭하여 찾아보기",
+      "convert_button": "파일 변환",
+      "download_button": "변환된 파일 다운로드"
+    }
+  },
+  "pricing": {
+    "title": "플랜 선택",
+    "subtitle": "필요에 맞는 플랜을 선택하세요",
+    "free": {
+      "title": "무료",
+      "price": "₩0",
+      "description": "가끔 사용하는 기본 PDF 도구",
+      "features": [
+        "5MB 파일 크기 제한",
+        "기본 압축",
+        "기본 병합",
+        "기본 분할",
+        "기본 변환"
+      ]
+    },
+    "basic": {
+      "title": "기본",
+      "price": "₩5,900",
+      "period": "월간",
+      "description": "정기적인 사용을 위한 향상된 PDF 도구",
+      "features": [
+        "20MB 파일 크기 제한",
+        "고급 압축",
+        "고급 병합",
+        "고급 분할",
+        "고급 변환",
+        "일괄 처리"
+      ]
+    },
+    "premium": {
+      "title": "프리미엄",
+      "price": "₩11,900",
+      "period": "월간",
+      "description": "파워 유저를 위한 전문 PDF 도구",
+      "features": [
+        "100MB 파일 크기 제한",
+        "프리미엄 압축",
+        "프리미엄 병합",
+        "프리미엄 분할",
+        "프리미엄 변환",
+        "일괄 처리",
+        "우선 지원"
+      ]
+    }
+  },
+  "auth": {
+    "login": "로그인",
+    "signup": "회원가입",
+    "email": "이메일",
+    "password": "비밀번호",
+    "confirm_password": "비밀번호 확인",
+    "forgot_password": "비밀번호를 잊으셨나요?",
+    "or_continue_with": "또는 계속하기",
+    "google": "Google",
+    "already_have_account": "이미 계정이 있으신가요?",
+    "dont_have_account": "계정이 없으신가요?"
+  },
+  "profile": {
+    "title": "프로필",
+    "personal_info": "개인 정보",
+    "name": "이름",
+    "email": "이메일",
+    "subscription": "구독",
+    "current_plan": "현재 플랜",
+    "usage": "사용량",
+    "file_size_limit": "파일 크기 제한",
+    "used": "사용됨",
+    "remaining": "남음",
+    "update_profile": "프로필 업데이트",
+    "change_password": "비밀번호 변경"
+  },
+  "footer": {
+    "copyright": "© 2025 RevisePDF. 모든 권리 보유.",
+    "terms": "서비스 약관",
+    "privacy": "개인정보 처리방침",
+    "contact": "문의하기"
+  }
+}

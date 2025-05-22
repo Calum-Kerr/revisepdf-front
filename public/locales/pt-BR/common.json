@@ -1,0 +1,126 @@
+{
+  "app_name": "RevisePDF",
+  "navigation": {
+    "home": "Início",
+    "dashboard": "Painel",
+    "tools": "Ferramentas",
+    "pricing": "Preços",
+    "login": "Entrar",
+    "signup": "Cadastrar",
+    "profile": "Perfil",
+    "logout": "Sair"
+  },
+  "home": {
+    "hero_title": "Ferramentas PDF Poderosas ao Seu Alcance",
+    "hero_subtitle": "Comprima, mescle, divida e converta PDFs com facilidade",
+    "get_started": "Começar",
+    "learn_more": "Saiba Mais"
+  },
+  "tools": {
+    "compress": {
+      "title": "Comprimir PDF",
+      "description": "Reduza o tamanho do arquivo mantendo a qualidade",
+      "upload_prompt": "Arraste e solte seu PDF aqui ou clique para navegar",
+      "compress_button": "Comprimir PDF",
+      "download_button": "Baixar PDF Comprimido"
+    },
+    "merge": {
+      "title": "Mesclar PDFs",
+      "description": "Combine vários PDFs em um único documento",
+      "upload_prompt": "Arraste e solte seus PDFs aqui ou clique para navegar",
+      "merge_button": "Mesclar PDFs",
+      "download_button": "Baixar PDF Mesclado"
+    },
+    "split": {
+      "title": "Dividir PDF",
+      "description": "Extraia páginas ou divida um PDF em vários arquivos",
+      "upload_prompt": "Arraste e solte seu PDF aqui ou clique para navegar",
+      "split_button": "Dividir PDF",
+      "download_button": "Baixar PDFs Divididos"
+    },
+    "convert": {
+      "title": "Converter PDF",
+      "description": "Converta PDFs para outros formatos e vice-versa",
+      "upload_prompt": "Arraste e solte seu arquivo aqui ou clique para navegar",
+      "convert_button": "Converter Arquivo",
+      "download_button": "Baixar Arquivo Convertido"
+    }
+  },
+  "pricing": {
+    "title": "Escolha Seu Plano",
+    "subtitle": "Selecione o plano que atende às suas necessidades",
+    "free": {
+      "title": "Gratuito",
+      "price": "R$0",
+      "description": "Ferramentas PDF básicas para uso ocasional",
+      "features": [
+        "Limite de 5MB por arquivo",
+        "Compressão básica",
+        "Mesclagem básica",
+        "Divisão básica",
+        "Conversão básica"
+      ]
+    },
+    "basic": {
+      "title": "Básico",
+      "price": "R$24,99",
+      "period": "por mês",
+      "description": "Ferramentas PDF aprimoradas para uso regular",
+      "features": [
+        "Limite de 20MB por arquivo",
+        "Compressão avançada",
+        "Mesclagem avançada",
+        "Divisão avançada",
+        "Conversão avançada",
+        "Processamento em lote"
+      ]
+    },
+    "premium": {
+      "title": "Premium",
+      "price": "R$49,99",
+      "period": "por mês",
+      "description": "Ferramentas PDF profissionais para usuários avançados",
+      "features": [
+        "Limite de 100MB por arquivo",
+        "Compressão premium",
+        "Mesclagem premium",
+        "Divisão premium",
+        "Conversão premium",
+        "Processamento em lote",
+        "Suporte prioritário"
+      ]
+    }
+  },
+  "auth": {
+    "login": "Entrar",
+    "signup": "Cadastrar",
+    "email": "Email",
+    "password": "Senha",
+    "confirm_password": "Confirmar Senha",
+    "forgot_password": "Esqueceu a senha?",
+    "or_continue_with": "Ou continue com",
+    "google": "Google",
+    "already_have_account": "Já tem uma conta?",
+    "dont_have_account": "Não tem uma conta?"
+  },
+  "profile": {
+    "title": "Perfil",
+    "personal_info": "Informações Pessoais",
+    "name": "Nome",
+    "email": "Email",
+    "subscription": "Assinatura",
+    "current_plan": "Plano Atual",
+    "usage": "Uso",
+    "file_size_limit": "Limite de Tamanho de Arquivo",
+    "used": "Usado",
+    "remaining": "Restante",
+    "update_profile": "Atualizar Perfil",
+    "change_password": "Alterar Senha"
+  },
+  "footer": {
+    "copyright": "© 2025 RevisePDF. Todos os direitos reservados.",
+    "terms": "Termos de Serviço",
+    "privacy": "Política de Privacidade",
+    "contact": "Contato"
+  }
+}

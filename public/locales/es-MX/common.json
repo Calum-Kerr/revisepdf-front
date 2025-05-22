@@ -1,0 +1,126 @@
+{
+  "app_name": "RevisePDF",
+  "navigation": {
+    "home": "Inicio",
+    "dashboard": "Panel",
+    "tools": "Herramientas",
+    "pricing": "Precios",
+    "login": "Iniciar sesión",
+    "signup": "Registrarse",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión"
+  },
+  "home": {
+    "hero_title": "Potentes herramientas PDF al alcance de tu mano",
+    "hero_subtitle": "Comprime, combina, divide y convierte PDFs con facilidad",
+    "get_started": "Comenzar",
+    "learn_more": "Saber más"
+  },
+  "tools": {
+    "compress": {
+      "title": "Comprimir PDF",
+      "description": "Reduce el tamaño del archivo manteniendo la calidad",
+      "upload_prompt": "Arrastra y suelta tu PDF aquí o haz clic para explorar",
+      "compress_button": "Comprimir PDF",
+      "download_button": "Descargar PDF comprimido"
+    },
+    "merge": {
+      "title": "Combinar PDFs",
+      "description": "Combina múltiples PDFs en un solo documento",
+      "upload_prompt": "Arrastra y suelta tus PDFs aquí o haz clic para explorar",
+      "merge_button": "Combinar PDFs",
+      "download_button": "Descargar PDF combinado"
+    },
+    "split": {
+      "title": "Dividir PDF",
+      "description": "Extrae páginas o divide un PDF en múltiples archivos",
+      "upload_prompt": "Arrastra y suelta tu PDF aquí o haz clic para explorar",
+      "split_button": "Dividir PDF",
+      "download_button": "Descargar PDFs divididos"
+    },
+    "convert": {
+      "title": "Convertir PDF",
+      "description": "Convierte PDFs a otros formatos y viceversa",
+      "upload_prompt": "Arrastra y suelta tu archivo aquí o haz clic para explorar",
+      "convert_button": "Convertir archivo",
+      "download_button": "Descargar archivo convertido"
+    }
+  },
+  "pricing": {
+    "title": "Elige tu plan",
+    "subtitle": "Selecciona el plan que se adapte a tus necesidades",
+    "free": {
+      "title": "Gratis",
+      "price": "MX$0",
+      "description": "Herramientas PDF básicas para uso ocasional",
+      "features": [
+        "Límite de 5MB por archivo",
+        "Compresión básica",
+        "Combinación básica",
+        "División básica",
+        "Conversión básica"
+      ]
+    },
+    "basic": {
+      "title": "Básico",
+      "price": "MX$99",
+      "period": "por mes",
+      "description": "Herramientas PDF mejoradas para uso regular",
+      "features": [
+        "Límite de 20MB por archivo",
+        "Compresión avanzada",
+        "Combinación avanzada",
+        "División avanzada",
+        "Conversión avanzada",
+        "Procesamiento por lotes"
+      ]
+    },
+    "premium": {
+      "title": "Premium",
+      "price": "MX$199",
+      "period": "por mes",
+      "description": "Herramientas PDF profesionales para usuarios avanzados",
+      "features": [
+        "Límite de 100MB por archivo",
+        "Compresión premium",
+        "Combinación premium",
+        "División premium",
+        "Conversión premium",
+        "Procesamiento por lotes",
+        "Soporte prioritario"
+      ]
+    }
+  },
+  "auth": {
+    "login": "Iniciar sesión",
+    "signup": "Registrarse",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "confirm_password": "Confirmar contraseña",
+    "forgot_password": "¿Olvidaste tu contraseña?",
+    "or_continue_with": "O continuar con",
+    "google": "Google",
+    "already_have_account": "¿Ya tienes una cuenta?",
+    "dont_have_account": "¿No tienes una cuenta?"
+  },
+  "profile": {
+    "title": "Perfil",
+    "personal_info": "Información personal",
+    "name": "Nombre",
+    "email": "Correo electrónico",
+    "subscription": "Suscripción",
+    "current_plan": "Plan actual",
+    "usage": "Uso",
+    "file_size_limit": "Límite de tamaño de archivo",
+    "used": "Usado",
+    "remaining": "Restante",
+    "update_profile": "Actualizar perfil",
+    "change_password": "Cambiar contraseña"
+  },
+  "footer": {
+    "copyright": "© 2025 RevisePDF. Todos los derechos reservados.",
+    "terms": "Términos de servicio",
+    "privacy": "Política de privacidad",
+    "contact": "Contacto"
+  }
+}

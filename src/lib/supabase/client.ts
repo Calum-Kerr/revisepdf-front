@@ -1,0 +1,169 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Please check your .env file.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export type SubscriptionTier = 'free' | 'basic' | 'premium';
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  full_name?: string;
+  subscription_tier: SubscriptionTier;
+  file_size_limit: number;
+  usage: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const getFileSizeLimit = (tier: SubscriptionTier): number => {
+  switch (tier) {
+    case 'free':
+      return 5 * 1024 * 1024; // 5MB
+    case 'basic':
+      return 20 * 1024 * 1024; // 20MB
+    case 'premium':
+      return 100 * 1024 * 1024; // 100MB
+    default:
+      return 5 * 1024 * 1024; // Default to free tier
+  }
+};
+
+export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+
+  return data as UserProfile;
+};
+
+export const createUserProfile = async (userId: string, email: string): Promise<UserProfile | null> => {
+  const newProfile = {
+    user_id: userId,
+    email,
+    subscription_tier: 'free' as SubscriptionTier,
+    file_size_limit: getFileSizeLimit('free'),
+    usage: 0,
+  };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert([newProfile])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating user profile:', error);
+    return null;
+  }
+
+  return data as UserProfile;
+};
+
+export const updateUserProfile = async (
+  userId: string,
+  updates: Partial<UserProfile>
+): Promise<UserProfile | null> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('user_id', userId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating user profile:', error);
+    return null;
+  }
+
+  return data as UserProfile;
+};
+
+export const updateUserSubscription = async (
+  userId: string,
+  tier: SubscriptionTier
+): Promise<UserProfile | null> => {
+  const fileLimit = getFileSizeLimit(tier);
+
+  return updateUserProfile(userId, {
+    subscription_tier: tier,
+    file_size_limit: fileLimit,
+  });
+};
+
+// Authentication functions
+export const signUp = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    console.error('Error signing up:', error);
+    return { user: null, error };
+  }
+
+  if (data.user) {
+    // Create a user profile
+    await createUserProfile(data.user.id, email);
+  }
+
+  return { user: data.user, error: null };
+};
+
+export const signIn = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  return { session: data.session, user: data.user, error };
+};
+
+export const signInWithGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    },
+  });
+
+  return { data, error };
+};
+
+export const signOut = async () => {
+  const { error } = await supabase.auth.signOut();
+  return { error };
+};
+
+export const getCurrentUser = async () => {
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (error || !session) {
+    return { user: null, session: null, error };
+  }
+
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return { user: null, session: null, error: userError };
+  }
+
+  // Get the user profile
+  const profile = await getUserProfile(user.id);
+
+  return { user, session, profile, error: null };
+};

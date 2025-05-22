@@ -1,0 +1,126 @@
+{
+  "app_name": "RevisePDF",
+  "navigation": {
+    "home": "Trang chủ",
+    "dashboard": "Bảng điều khiển",
+    "tools": "Công cụ",
+    "pricing": "Giá cả",
+    "login": "Đăng nhập",
+    "signup": "Đăng ký",
+    "profile": "Hồ sơ",
+    "logout": "Đăng xuất"
+  },
+  "home": {
+    "hero_title": "Công cụ PDF mạnh mẽ trong tầm tay",
+    "hero_subtitle": "Nén, ghép, tách và chuyển đổi PDF một cách dễ dàng",
+    "get_started": "Bắt đầu",
+    "learn_more": "Tìm hiểu thêm"
+  },
+  "tools": {
+    "compress": {
+      "title": "Nén PDF",
+      "description": "Giảm kích thước tệp trong khi vẫn duy trì chất lượng",
+      "upload_prompt": "Kéo và thả PDF của bạn vào đây hoặc nhấp để duyệt",
+      "compress_button": "Nén PDF",
+      "download_button": "Tải xuống PDF đã nén"
+    },
+    "merge": {
+      "title": "Ghép PDF",
+      "description": "Kết hợp nhiều PDF thành một tài liệu",
+      "upload_prompt": "Kéo và thả PDF của bạn vào đây hoặc nhấp để duyệt",
+      "merge_button": "Ghép PDF",
+      "download_button": "Tải xuống PDF đã ghép"
+    },
+    "split": {
+      "title": "Tách PDF",
+      "description": "Trích xuất trang hoặc tách PDF thành nhiều tệp",
+      "upload_prompt": "Kéo và thả PDF của bạn vào đây hoặc nhấp để duyệt",
+      "split_button": "Tách PDF",
+      "download_button": "Tải xuống PDF đã tách"
+    },
+    "convert": {
+      "title": "Chuyển đổi PDF",
+      "description": "Chuyển đổi PDF sang các định dạng khác và ngược lại",
+      "upload_prompt": "Kéo và thả tệp của bạn vào đây hoặc nhấp để duyệt",
+      "convert_button": "Chuyển đổi tệp",
+      "download_button": "Tải xuống tệp đã chuyển đổi"
+    }
+  },
+  "pricing": {
+    "title": "Chọn gói của bạn",
+    "subtitle": "Chọn gói phù hợp với nhu cầu của bạn",
+    "free": {
+      "title": "Miễn phí",
+      "price": "0₫",
+      "description": "Công cụ PDF cơ bản cho việc sử dụng thỉnh thoảng",
+      "features": [
+        "Giới hạn kích thước tệp 5MB",
+        "Nén cơ bản",
+        "Ghép cơ bản",
+        "Tách cơ bản",
+        "Chuyển đổi cơ bản"
+      ]
+    },
+    "basic": {
+      "title": "Cơ bản",
+      "price": "115.000₫",
+      "period": "mỗi tháng",
+      "description": "Công cụ PDF nâng cao cho việc sử dụng thường xuyên",
+      "features": [
+        "Giới hạn kích thước tệp 20MB",
+        "Nén nâng cao",
+        "Ghép nâng cao",
+        "Tách nâng cao",
+        "Chuyển đổi nâng cao",
+        "Xử lý hàng loạt"
+      ]
+    },
+    "premium": {
+      "title": "Cao cấp",
+      "price": "230.000₫",
+      "period": "mỗi tháng",
+      "description": "Công cụ PDF chuyên nghiệp cho người dùng nâng cao",
+      "features": [
+        "Giới hạn kích thước tệp 100MB",
+        "Nén cao cấp",
+        "Ghép cao cấp",
+        "Tách cao cấp",
+        "Chuyển đổi cao cấp",
+        "Xử lý hàng loạt",
+        "Hỗ trợ ưu tiên"
+      ]
+    }
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "signup": "Đăng ký",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "confirm_password": "Xác nhận mật khẩu",
+    "forgot_password": "Quên mật khẩu?",
+    "or_continue_with": "Hoặc tiếp tục với",
+    "google": "Google",
+    "already_have_account": "Đã có tài khoản?",
+    "dont_have_account": "Chưa có tài khoản?"
+  },
+  "profile": {
+    "title": "Hồ sơ",
+    "personal_info": "Thông tin cá nhân",
+    "name": "Tên",
+    "email": "Email",
+    "subscription": "Gói đăng ký",
+    "current_plan": "Gói hiện tại",
+    "usage": "Sử dụng",
+    "file_size_limit": "Giới hạn kích thước tệp",
+    "used": "Đã sử dụng",
+    "remaining": "Còn lại",
+    "update_profile": "Cập nhật hồ sơ",
+    "change_password": "Đổi mật khẩu"
+  },
+  "footer": {
+    "copyright": "© 2025 RevisePDF. Tất cả các quyền được bảo lưu.",
+    "terms": "Điều khoản dịch vụ",
+    "privacy": "Chính sách bảo mật",
+    "contact": "Liên hệ"
+  }
+}

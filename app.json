@@ -1,0 +1,39 @@
+{
+  "name": "RevisePDF",
+  "description": "A powerful PDF manipulation application with internationalization support",
+  "repository": "https://github.com/Calum-Kerr/revisepdf-front",
+  "keywords": ["node", "next", "react", "pdf", "supabase"],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": {
+      "description": "The URL of your Supabase project",
+      "required": true
+    },
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": {
+      "description": "The anon key of your Supabase project",
+      "required": true
+    },
+    "NEXT_PUBLIC_GOOGLE_CLIENT_ID": {
+      "description": "Google OAuth client ID for authentication",
+      "required": true
+    },
+    "NEXT_PUBLIC_APP_URL": {
+      "description": "The URL of your application",
+      "required": true
+    },
+    "NODE_ENV": {
+      "description": "The environment to run the application in",
+      "value": "production"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ],
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  }
+}
