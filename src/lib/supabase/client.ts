@@ -489,100 +489,24 @@ export const resetPassword = async (email: string) => {
   }
 };
 
-// Record a file operation and update user storage usage
-export const recordFileOperation = async (
-  userId: string,
-  operationType: 'compress' | 'merge' | 'split' | 'convert',
-  fileSize: number,
-  fileCount: number = 1,
-  inputFilename?: string,
-  outputFilename?: string
-): Promise<{
-  operation_id: number;
-  is_valid: boolean;
-  error_message?: string;
-  cost_cents: number;
-} | null> => {
-  try {
-    console.log(`Recording ${operationType} operation for user ${userId} with file size: ${fileSize} bytes, file count: ${fileCount}`);
 
-    // Call the record_file_operation function
-    const { data, error } = await supabase.rpc('record_file_operation', {
-      p_user_id: userId,
-      p_operation_type: operationType,
-      p_file_size_bytes: fileSize,
-      p_file_count: fileCount,
-      p_input_filename: inputFilename || null,
-      p_output_filename: outputFilename || null
-    });
 
-    if (error) {
-      console.error('Error recording file operation:', error);
-      return null;
-    }
 
-    console.log('Operation recorded successfully:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in recordFileOperation:', error);
-    return null;
-  }
-};
-
-// Get user statistics
-export const getUserStats = async (userId: string): Promise<any | null> => {
-  try {
-    console.log(`Getting stats for user ${userId}`);
-
-    // Call the get_user_stats function
-    const { data, error } = await supabase.rpc('get_user_stats', {
-      p_user_id: userId
-    });
-
-    if (error) {
-      console.error('Error getting user stats:', error);
-      return null;
-    }
-
-    console.log('User stats retrieved successfully:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in getUserStats:', error);
-    return null;
-  }
-};
 
 // DEPRECATED: Update user storage usage - now calls recordFileOperation
 export const updateUserStorageUsage = async (userId: string, fileSize: number): Promise<UserProfile | null> => {
-  try {
-    console.log(`DEPRECATED: Updating storage usage for user ${userId} with file size: ${fileSize} bytes`);
-    console.log('This function is deprecated. Using recordFileOperation instead.');
+  console.log('DEPRECATED: Using updateUserStorageUsage. Please update to use recordFileOperation instead.');
 
-    // Call the new function instead
-    const result = await recordFileOperation(userId, 'compress', fileSize);
+  // Call the new function with default values
+  const result = await recordFileOperation(userId, 'compress', fileSize);
 
-    if (!result) {
-      console.error('Error recording file operation');
-      return null;
-    }
-
-    // Get the updated profile to return for backward compatibility
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (profileError) {
-      console.error('Error fetching updated profile:', profileError);
-      return null;
-    }
-
-    return profile as UserProfile;
-  } catch (error) {
-    console.error('Error in updateUserStorageUsage:', error);
+  if (!result || !result.is_valid) {
+    console.error('Operation validation failed:', result?.error_message);
     return null;
   }
+
+  // Get the updated profile
+  return getUserProfile(userId);
 };
 
 export const getCurrentUser = async () => {
