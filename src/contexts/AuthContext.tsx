@@ -139,13 +139,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) {
         console.error('Sign in error:', error);
         toast.error(error.message || 'Failed to sign in. Please check your credentials.');
-        return;
+        return { error };
       }
 
       if (!user || !session) {
         console.error('No user or session returned from signIn');
         toast.error('Authentication failed. Please try again.');
-        return;
+        return { error: new Error('No user or session returned') };
       }
 
       console.log('Sign in successful, user ID:', user.id);
@@ -173,15 +173,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       toast.success('Logged in successfully!');
 
-      // Force a redirect to the dashboard to ensure the user is redirected
-      console.log('Redirecting to dashboard...');
-
-      // Use window.location for a hard redirect instead of router.push
-      // This ensures a full page reload and proper session recognition
-      window.location.href = '/dashboard';
+      // Return success result to allow the login page to handle redirection
+      return { user, session, error: null };
     } catch (error: any) {
       console.error('Unexpected error during sign in:', error);
       toast.error('An unexpected error occurred. Please try again.');
+      return { error };
     } finally {
       setIsLoading(false);
     }

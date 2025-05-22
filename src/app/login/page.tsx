@@ -53,19 +53,17 @@ export default function LoginPage() {
       // If we already have user and session from context
       if (user && session) {
         console.log('User already authenticated in context, redirecting to dashboard');
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
         return;
       }
 
-      // Double-check with Supabase directly
+      // Double-check with Supabase directly, but only once on component mount
       try {
         const { data: { session: existingSession } } = await supabase.auth.getSession();
 
         if (existingSession) {
           console.log('Found existing session in Supabase, redirecting to dashboard');
-
-          // Use window.location for a hard redirect
-          window.location.href = '/dashboard';
+          router.push('/dashboard');
         } else {
           console.log('No existing session found, staying on login page');
         }
@@ -74,17 +72,9 @@ export default function LoginPage() {
       }
     };
 
-    // Run the auth check immediately
+    // Run the auth check only once when component mounts
     checkAuth();
-
-    // Also set up an interval to periodically check auth status
-    // This helps catch cases where the auth state changes but the component doesn't re-render
-    const authCheckInterval = setInterval(checkAuth, 2000);
-
-    return () => {
-      clearInterval(authCheckInterval);
-    };
-  }, [user, session]);
+  }, [user, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,22 +89,17 @@ export default function LoginPage() {
       console.log('Login page: Attempting to sign in with email:', email);
 
       // Use the signIn method from AuthContext
-      await signIn(email, password);
+      const result = await signIn(email, password);
 
-      // Add a manual redirect as a fallback
-      console.log('Login page: Sign in completed, checking if redirect is needed');
-
-      // Add a small delay to allow the auth state to update
-      setTimeout(() => {
-        // Check if we're still on the login page after signIn completes
-        if (window.location.pathname.includes('/login')) {
-          console.log('Login page: Still on login page after signIn, forcing redirect to dashboard');
-          window.location.href = '/dashboard';
-        }
-      }, 1500);
+      // If signIn was successful, manually redirect to dashboard
+      if (result && !result.error) {
+        console.log('Login successful, redirecting to dashboard');
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       console.error('Login form error:', error);
       toast.error(error.message || 'Login failed. Please check your credentials and try again.');
+    } finally {
       setIsLoading(false);
     }
   };

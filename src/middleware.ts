@@ -8,7 +8,25 @@ const protectedRoutes = ['/dashboard', '/profile', '/tools/compress', '/tools/me
 // Routes that should redirect to dashboard if authenticated
 const authRoutes = ['/login', '/signup', '/forgot-password'];
 
+// Skip middleware for static files and API routes
+const publicPaths = [
+  '/locales',
+  '/_next',
+  '/favicon.ico',
+  '/api',
+  '/images',
+  '/fonts',
+];
+
 export async function middleware(req: NextRequest) {
+  // Skip middleware for static files and API routes
+  const { pathname } = req.nextUrl;
+
+  // Check if the path should be skipped
+  if (publicPaths.some(path => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
+
   // Create a response object that we'll modify based on auth status
   const res = NextResponse.next();
 
@@ -21,10 +39,7 @@ export async function middleware(req: NextRequest) {
       data: { session },
     } = await supabase.auth.getSession();
 
-    // Get the pathname from the URL
-    const { pathname } = req.nextUrl;
-
-    // Log authentication status for debugging
+    // Log authentication status for debugging (only for non-static paths)
     console.log(`Middleware: Path ${pathname}, Authenticated: ${!!session}`);
 
     // PRIORITY 1: If the user is authenticated and trying to access auth routes, redirect to dashboard
@@ -54,6 +69,8 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    // Skip static files
+    '/((?!_next/static|_next/image|favicon.ico|locales).*)',
     /*
      * Match all request paths except for the ones starting with:
      * - _next/static (static files)
