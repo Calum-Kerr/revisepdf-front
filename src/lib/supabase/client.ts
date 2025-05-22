@@ -125,12 +125,41 @@ export const signUp = async (email: string, password: string) => {
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  return { session: data.session, user: data.user, error };
+    if (error) {
+      console.error('Supabase signIn error:', error);
+      return { session: null, user: null, error };
+    }
+
+    if (!data.session) {
+      console.error('No session returned from signInWithPassword');
+      return {
+        session: null,
+        user: null,
+        error: new Error('Authentication failed. Please try again.')
+      };
+    }
+
+    // Verify the session is valid
+    await supabase.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    });
+
+    return { session: data.session, user: data.user, error: null };
+  } catch (err) {
+    console.error('Unexpected error during signIn:', err);
+    return {
+      session: null,
+      user: null,
+      error: new Error('An unexpected error occurred. Please try again.')
+    };
+  }
 };
 
 export const signInWithGoogle = async () => {

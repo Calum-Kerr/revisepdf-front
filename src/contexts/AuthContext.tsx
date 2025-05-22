@@ -2,12 +2,12 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { 
-  supabase, 
-  signIn, 
-  signUp, 
-  signInWithGoogle, 
-  signOut, 
+import {
+  supabase,
+  signIn,
+  signUp,
+  signInWithGoogle,
+  signOut,
   getCurrentUser,
   UserProfile
 } from '@/lib/supabase/client';
@@ -78,21 +78,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { session, user, error } = await signIn(email, password);
 
       if (error) {
-        toast.error(error.message);
+        console.error('Sign in error:', error);
+        toast.error(error.message || 'Failed to sign in. Please check your credentials.');
         return;
       }
 
-      if (user) {
-        setUser(user);
-        setSession(session);
+      if (!user || !session) {
+        console.error('No user or session returned from signIn');
+        toast.error('Authentication failed. Please try again.');
+        return;
+      }
+
+      // Set the user and session state
+      setUser(user);
+      setSession(session);
+
+      try {
+        // Get the user profile
         const { profile } = await getCurrentUser();
         setProfile(profile);
-        toast.success('Logged in successfully!');
-        router.push('/dashboard');
+      } catch (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        // Continue even if profile fetch fails
       }
-    } catch (error) {
-      console.error('Error signing in:', error);
-      toast.error('Failed to sign in. Please try again.');
+
+      toast.success('Logged in successfully!');
+
+      // Add a small delay before redirecting to ensure state updates
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
+    } catch (error: any) {
+      console.error('Unexpected error during sign in:', error);
+      toast.error('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }

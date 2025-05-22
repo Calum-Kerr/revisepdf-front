@@ -31,11 +31,11 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none';
 
   const variantStyles: Record<ButtonVariant, string> = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
+    primary: 'bg-primary-600 text-gray-900 hover:bg-primary-500 hover:text-black active:bg-primary-400',
     secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400',
-    outline: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100',
-    ghost: 'bg-transparent text-gray-700 hover:bg-gray-50 active:bg-gray-100',
-    link: 'bg-transparent underline-offset-4 hover:underline text-primary-600 hover:text-primary-700',
+    outline: 'border border-gray-400 bg-white text-gray-800 hover:bg-gray-50 active:bg-gray-100',
+    ghost: 'bg-transparent text-gray-800 hover:bg-gray-50 active:bg-gray-100',
+    link: 'bg-transparent underline-offset-4 hover:underline text-primary-700 hover:text-primary-800',
   };
 
   const sizeStyles: Record<ButtonSize, string> = {

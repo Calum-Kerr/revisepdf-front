@@ -39,9 +39,10 @@ export default function LoginPage() {
       // Use the signIn method from AuthContext
       await signIn(email, password);
 
-      // The AuthContext will handle the redirect and session management
+      // The signIn method in AuthContext will handle success, errors, and redirection
+      // We don't need to set isLoading to false here as it's handled in the AuthContext
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('Login form error:', error);
       toast.error(error.message || 'Login failed. Please check your credentials and try again.');
       setIsLoading(false);
     }

@@ -44,6 +44,17 @@ export async function GET(request: NextRequest) {
         path: '/',
       });
 
+      // Set additional cookies to help with session persistence
+      response.cookies.set({
+        name: 'supabase-auth-token-expiry',
+        value: new Date(Date.now() + 60 * 60 * 24 * 7 * 1000).toISOString(), // 1 week from now
+        httpOnly: false, // Allow JavaScript access
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 1 week
+        path: '/',
+      });
+
       return response;
     } catch (error) {
       console.error('Error in auth callback:', error);
