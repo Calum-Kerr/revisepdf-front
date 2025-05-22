@@ -198,10 +198,21 @@ export default function CompressPDFPage() {
             // Update the profile in context
             if (typeof window !== 'undefined') {
               // Trigger a refresh of the auth context
+              console.log('Dispatching storage-usage-updated event with profile:', updatedProfile);
+
+              // Create a proper custom event with the updated profile
               const event = new CustomEvent('storage-usage-updated', {
                 detail: { profile: updatedProfile }
               });
+
+              // Dispatch the event
               window.dispatchEvent(event);
+
+              // Also force a refresh of the auth context
+              window.dispatchEvent(new Event('visibilitychange'));
+
+              // Set a flag in localStorage to ensure the dashboard gets updated
+              localStorage.setItem('storage-usage-last-updated', Date.now().toString());
             }
           } else {
             console.warn('Failed to update storage usage');

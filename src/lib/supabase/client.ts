@@ -138,13 +138,26 @@ export const updateUserStorageUsage = async (
   console.log(`Updating storage usage for user ${userId} with file size: ${fileSize} bytes`);
 
   try {
-    // First, get the current user profile
-    const currentProfile = await getUserProfile(userId);
+    // Force a direct database query with cache busting to get the most current profile
+    const timestamp = Date.now();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+      .abortSignal(new AbortController().signal); // This helps avoid using cached results
 
-    if (!currentProfile) {
+    if (error) {
+      console.error('Error fetching current profile for storage update:', error);
+      return null;
+    }
+
+    if (!data) {
       console.error('Could not find user profile for storage update');
       return null;
     }
+
+    const currentProfile = data as UserProfile;
 
     // Calculate new usage
     // Note: In a real app, you might want to track individual files
@@ -152,6 +165,7 @@ export const updateUserStorageUsage = async (
     const newUsage = currentProfile.usage + fileSize;
 
     console.log(`Current usage: ${currentProfile.usage} bytes, New usage: ${newUsage} bytes`);
+    console.log(`Profile query executed at ${new Date(timestamp).toISOString()}`);
 
     // Check if the new usage exceeds the limit
     if (newUsage > currentProfile.file_size_limit) {
@@ -159,10 +173,26 @@ export const updateUserStorageUsage = async (
       throw new Error(`Storage limit exceeded. Current limit: ${currentProfile.file_size_limit} bytes`);
     }
 
-    // Update the profile with the new usage
-    return updateUserProfile(userId, {
-      usage: newUsage,
-    });
+    // Update the profile with the new usage - use a direct update with cache control
+    const { data: updatedData, error: updateError } = await supabase
+      .from('profiles')
+      .update({ usage: newUsage, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating profile with new storage usage:', updateError);
+      return null;
+    }
+
+    if (!updatedData) {
+      console.error('No data returned after updating profile');
+      return null;
+    }
+
+    console.log('Storage usage updated successfully:', updatedData);
+    return updatedData as UserProfile;
   } catch (error) {
     console.error('Error updating user storage usage:', error);
     return null;

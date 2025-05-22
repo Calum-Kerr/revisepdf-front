@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { FileUpload } from '@/components/pdf/FileUpload';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { updateUserStorageUsage } from '@/lib/supabase/client';
 
 type ConversionType = 'pdf-to-image' | 'image-to-pdf' | 'pdf-to-word' | 'word-to-pdf';
 
@@ -21,6 +23,7 @@ export default function ConvertPDFPage() {
   const [convertedFile, setConvertedFile] = useState<Blob | null>(null);
   const [isConverting, setIsConverting] = useState(false);
   const [conversionType, setConversionType] = useState<ConversionType>('pdf-to-image');
+  const { user, isLoading } = useAuth();
 
   const conversionOptions: ConversionOption[] = [
     {
@@ -75,6 +78,10 @@ export default function ConvertPDFPage() {
     try {
       setIsConverting(true);
 
+      // Show a loading toast with a unique ID based on timestamp
+      const toastId = `convert-toast-${Date.now()}`;
+      toast.loading(`Converting to ${currentOption.outputFormat}...`, { id: toastId });
+
       // Simulate conversion process with a timeout
       // In a real app, you would use appropriate libraries for each conversion type
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -84,6 +91,45 @@ export default function ConvertPDFPage() {
       const mockBlob = new Blob([await file.arrayBuffer()], { type: 'application/octet-stream' });
       setConvertedFile(mockBlob);
 
+      // Update the user's storage usage
+      if (user) {
+        try {
+          console.log(`Updating storage usage for user ${user.id} with file size: ${mockBlob.size} bytes`);
+          const updatedProfile = await updateUserStorageUsage(user.id, mockBlob.size);
+
+          if (updatedProfile) {
+            console.log('Storage usage updated successfully:', updatedProfile);
+
+            // Update the profile in context
+            if (typeof window !== 'undefined') {
+              // Trigger a refresh of the auth context
+              console.log('Dispatching storage-usage-updated event with profile:', updatedProfile);
+
+              // Create a proper custom event with the updated profile
+              const event = new CustomEvent('storage-usage-updated', {
+                detail: { profile: updatedProfile }
+              });
+
+              // Dispatch the event
+              window.dispatchEvent(event);
+
+              // Also force a refresh of the auth context
+              window.dispatchEvent(new Event('visibilitychange'));
+
+              // Set a flag in localStorage to ensure the dashboard gets updated
+              localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+            }
+          } else {
+            console.warn('Failed to update storage usage');
+          }
+        } catch (storageError) {
+          console.error('Error updating storage usage:', storageError);
+          // Continue even if storage update fails
+        }
+      }
+
+      // Dismiss the loading toast
+      toast.dismiss(toastId);
       toast.success(`File converted to ${currentOption.outputFormat} successfully!`);
     } catch (error) {
       console.error('Error converting file:', error);

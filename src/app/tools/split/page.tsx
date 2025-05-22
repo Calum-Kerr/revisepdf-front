@@ -105,6 +105,12 @@ export default function SplitPDFPage() {
     try {
       setIsSplitting(true);
 
+      // Show a loading toast with a unique ID based on timestamp
+      const toastId = `split-toast-${Date.now()}`;
+      toast.loading(splitMode === 'range' ? 'Splitting PDF...' : 'Extracting pages...', { id: toastId });
+
+      let result: Blob[] = [];
+
       if (splitMode === 'range') {
         // Validate ranges
         const validRanges = ranges.filter(range =>
@@ -114,26 +120,71 @@ export default function SplitPDFPage() {
         );
 
         if (validRanges.length === 0) {
+          toast.dismiss(toastId);
           toast.error('Please provide valid page ranges');
           setIsSplitting(false);
           return;
         }
 
-        const result = await splitPDF(file, validRanges);
+        result = await splitPDF(file, validRanges);
         setSplitFiles(result);
       } else {
         // Extract pages mode
         if (selectedPages.length === 0) {
+          toast.dismiss(toastId);
           toast.error('Please select at least one page to extract');
           setIsSplitting(false);
           return;
         }
 
-        const result = await extractPages(file, selectedPages);
-        setSplitFiles([result]);
+        const extractedPdf = await extractPages(file, selectedPages);
+        result = [extractedPdf];
+        setSplitFiles(result);
       }
 
-      toast.success('PDF split successfully!');
+      // Update the user's storage usage
+      if (user && result.length > 0) {
+        try {
+          // Calculate total size of all split files
+          const totalSize = result.reduce((sum, file) => sum + file.size, 0);
+          console.log(`Updating storage usage for user ${user.id} with total file size: ${totalSize} bytes`);
+
+          const updatedProfile = await updateUserStorageUsage(user.id, totalSize);
+
+          if (updatedProfile) {
+            console.log('Storage usage updated successfully:', updatedProfile);
+
+            // Update the profile in context
+            if (typeof window !== 'undefined') {
+              // Trigger a refresh of the auth context
+              console.log('Dispatching storage-usage-updated event with profile:', updatedProfile);
+
+              // Create a proper custom event with the updated profile
+              const event = new CustomEvent('storage-usage-updated', {
+                detail: { profile: updatedProfile }
+              });
+
+              // Dispatch the event
+              window.dispatchEvent(event);
+
+              // Also force a refresh of the auth context
+              window.dispatchEvent(new Event('visibilitychange'));
+
+              // Set a flag in localStorage to ensure the dashboard gets updated
+              localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+            }
+          } else {
+            console.warn('Failed to update storage usage');
+          }
+        } catch (storageError) {
+          console.error('Error updating storage usage:', storageError);
+          // Continue even if storage update fails
+        }
+      }
+
+      // Dismiss the loading toast
+      toast.dismiss(toastId);
+      toast.success(splitMode === 'range' ? 'PDF split successfully!' : 'Pages extracted successfully!');
     } catch (error) {
       console.error('Error splitting PDF:', error);
       toast.error('Failed to split PDF. Please try again.');

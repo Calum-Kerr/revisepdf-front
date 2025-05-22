@@ -124,11 +124,17 @@ export default function DashboardPage() {
       // Always try to fetch the latest profile data directly from Supabase
       try {
         console.log('Fetching user profile directly for user ID:', currentUser.id);
+
+        // Force a cache-busting query parameter to ensure we get fresh data
+        const timestamp = Date.now();
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('user_id', currentUser.id)
-          .single();
+          .single()
+          .abortSignal(new AbortController().signal); // This helps avoid using cached results
+
+        console.log(`Profile query executed at ${new Date(timestamp).toISOString()}`);
 
         if (error) {
           console.error('Error fetching profile from database:', error);
@@ -144,6 +150,8 @@ export default function DashboardPage() {
           }
         } else if (data) {
           console.log('Profile fetched successfully:', data);
+          console.log(`Current storage usage: ${data.usage} bytes (${data.usage / (1024 * 1024)} MB)`);
+
           // Use the fetched profile data
           updatedUserData.plan = data.subscription_tier?.charAt(0).toUpperCase() +
                                 data.subscription_tier?.slice(1) || 'Free';
@@ -171,19 +179,73 @@ export default function DashboardPage() {
   // Listen for storage usage updates
   useEffect(() => {
     // Create a memoized version of fetchUserData that doesn't change on re-renders
-    const refreshDashboardData = () => {
+    const refreshDashboardData = (event: Event) => {
       console.log('Storage usage update detected, refreshing dashboard data');
-      fetchUserData();
+
+      // Check if we have profile data in the event
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.profile) {
+        console.log('Received updated profile in event:', customEvent.detail.profile);
+
+        // Update the user data directly from the event data
+        const profile = customEvent.detail.profile;
+        setUserData(prevData => ({
+          ...prevData,
+          plan: profile.subscription_tier?.charAt(0).toUpperCase() +
+                profile.subscription_tier?.slice(1) || 'Free',
+          usedStorage: profile.usage ? profile.usage / (1024 * 1024) : 0, // Convert bytes to MB
+          totalStorage: profile.file_size_limit ?
+                      profile.file_size_limit / (1024 * 1024) : 5, // Convert bytes to MB
+        }));
+
+        setLoadingState('success');
+      } else {
+        // If no profile in event, fetch the data
+        fetchUserData();
+      }
+    };
+
+    // Also listen for localStorage changes
+    const handleStorageChange = () => {
+      const lastUpdated = localStorage.getItem('storage-usage-last-updated');
+      if (lastUpdated) {
+        console.log('Storage usage last updated at:', new Date(parseInt(lastUpdated)));
+        // Clear the flag to avoid duplicate refreshes
+        localStorage.removeItem('storage-usage-last-updated');
+        // Fetch the latest data
+        fetchUserData();
+      }
     };
 
     if (typeof window !== 'undefined') {
       window.addEventListener('storage-usage-updated', refreshDashboardData);
+      window.addEventListener('storage', handleStorageChange);
+
+      // Check for storage update flag on mount
+      handleStorageChange();
     }
 
     return () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage-usage-updated', refreshDashboardData);
+        window.removeEventListener('storage', handleStorageChange);
       }
+    };
+  }, []);
+
+  // Refresh data when the page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Dashboard page became visible, refreshing data');
+        fetchUserData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
