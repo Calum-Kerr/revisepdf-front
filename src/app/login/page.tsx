@@ -47,9 +47,28 @@ export default function LoginPage() {
 
   // Check if user is already authenticated
   useEffect(() => {
-    if (user && session) {
-      router.push('/dashboard');
-    }
+    const checkAuth = async () => {
+      // If we already have user and session from context
+      if (user && session) {
+        console.log('User already authenticated in context, redirecting to dashboard');
+        router.push('/dashboard');
+        return;
+      }
+
+      // Double-check with Supabase directly
+      try {
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+
+        if (existingSession) {
+          console.log('Found existing session in Supabase, redirecting to dashboard');
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        console.error('Error checking authentication status:', error);
+      }
+    };
+
+    checkAuth();
   }, [user, session, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -37,17 +37,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        setIsLoading(true);
+
         // First check if we have a session in localStorage
         const { data: { session: existingSession } } = await supabase.auth.getSession();
 
         if (existingSession) {
           console.log('Found existing session:', existingSession.user.id);
-          setSession(existingSession);
-          setUser(existingSession.user);
 
-          // Fetch the user profile
-          const { profile } = await getCurrentUser();
-          setProfile(profile || null);
+          // Verify the session is valid by refreshing it
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+          if (refreshError) {
+            console.error('Error refreshing session:', refreshError);
+            // Clear invalid session
+            await supabase.auth.signOut();
+            setUser(null);
+            setSession(null);
+            setProfile(null);
+          } else if (refreshData.session) {
+            console.log('Session refreshed successfully');
+            setSession(refreshData.session);
+            setUser(refreshData.user);
+
+            // Fetch the user profile
+            const { profile } = await getCurrentUser();
+            setProfile(profile || null);
+
+            // Ensure the session is stored in localStorage
+            localStorage.setItem('supabase-auth-token', JSON.stringify({
+              access_token: refreshData.session.access_token,
+              refresh_token: refreshData.session.refresh_token,
+            }));
+          }
         } else {
           console.log('No existing session found');
           setUser(null);
@@ -56,6 +78,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (error) {
         console.error('Error fetching user:', error);
+        // Clear state on error
+        setUser(null);
+        setSession(null);
+        setProfile(null);
       } finally {
         setIsLoading(false);
       }
@@ -69,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('Auth state changed:', event, session?.user?.id);
 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log('User signed in or token refreshed');
           setSession(session);
           setUser(session?.user || null);
 
@@ -76,11 +103,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Fetch the user profile
             const { profile } = await getCurrentUser();
             setProfile(profile || null);
+
+            // Ensure the session is stored in localStorage
+            localStorage.setItem('supabase-auth-token', JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            }));
           }
         } else if (event === 'SIGNED_OUT') {
+          console.log('User signed out');
           setUser(null);
           setSession(null);
           setProfile(null);
+
+          // Clear localStorage
+          localStorage.removeItem('supabase-auth-token');
         }
 
         setIsLoading(false);

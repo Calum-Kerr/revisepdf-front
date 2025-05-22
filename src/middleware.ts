@@ -9,37 +9,47 @@ const protectedRoutes = ['/dashboard', '/profile', '/tools/compress', '/tools/me
 const authRoutes = ['/login', '/signup', '/forgot-password'];
 
 export async function middleware(req: NextRequest) {
+  // Create a response object that we'll modify based on auth status
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
 
-  // Check if the user is authenticated
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    // Create the Supabase client
+    const supabase = createMiddlewareClient({ req, res });
 
-  // Get the pathname from the URL
-  const { pathname } = req.nextUrl;
+    // Check if the user is authenticated
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  // Log authentication status for debugging
-  console.log(`Middleware: Path ${pathname}, Authenticated: ${!!session}`);
+    // Get the pathname from the URL
+    const { pathname } = req.nextUrl;
 
-  // Check if the route is protected and the user is not authenticated
-  if (protectedRoutes.some(route => pathname.startsWith(route)) && !session) {
-    console.log(`Middleware: Redirecting to login from ${pathname}`);
-    // Redirect to login page
-    const redirectUrl = new URL('/login', req.url);
-    redirectUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(redirectUrl);
+    // Log authentication status for debugging
+    console.log(`Middleware: Path ${pathname}, Authenticated: ${!!session}`);
+
+    // PRIORITY 1: If the user is authenticated and trying to access auth routes, redirect to dashboard
+    if (session && authRoutes.some(route => pathname === route)) {
+      console.log(`Middleware: Authenticated user accessing ${pathname}, redirecting to dashboard`);
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
+    // PRIORITY 2: If the route is protected and the user is not authenticated, redirect to login
+    if (protectedRoutes.some(route => pathname.startsWith(route)) && !session) {
+      console.log(`Middleware: Unauthenticated user accessing ${pathname}, redirecting to login`);
+      const redirectUrl = new URL('/login', req.url);
+      redirectUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    // For all other routes, proceed normally with the enhanced response
+    // that includes the Supabase auth cookies
+    return res;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // In case of error, still allow the request to proceed
+    // but log the error for debugging
+    return res;
   }
-
-  // If the user is authenticated and trying to access login or signup pages, redirect to dashboard
-  if (session && authRoutes.some(route => pathname === route)) {
-    console.log(`Middleware: Redirecting to dashboard from ${pathname}`);
-    return NextResponse.redirect(new URL('/dashboard', req.url));
-  }
-
-  // For all other routes, proceed normally
-  return res;
 }
 
 export const config = {
