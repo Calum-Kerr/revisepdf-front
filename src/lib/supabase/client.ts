@@ -217,8 +217,27 @@ export const signInWithGoogle = async () => {
 };
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut();
-  return { error };
+  try {
+    console.log('Attempting to sign out...');
+
+    // Clear any local storage items related to authentication
+    localStorage.removeItem('supabase-auth-token');
+    localStorage.removeItem('supabase.auth.token');
+
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+
+    if (error) {
+      console.error('Error signing out from Supabase:', error);
+      return { error };
+    }
+
+    console.log('Successfully signed out');
+    return { error: null };
+  } catch (err) {
+    console.error('Unexpected error during sign out:', err);
+    return { error: new Error('Failed to sign out. Please try again.') };
+  }
 };
 
 export const getCurrentUser = async () => {

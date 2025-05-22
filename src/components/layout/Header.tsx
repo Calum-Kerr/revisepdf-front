@@ -30,8 +30,19 @@ export const Header: React.FC = () => {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut();
-    router.push('/');
+    console.log('Header: Handling sign out click');
+    try {
+      // Call the signOut function from AuthContext
+      await signOut();
+
+      // Force a page reload to ensure all auth state is cleared
+      console.log('Header: Sign out successful, redirecting to home page');
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // If there's an error, still try to redirect to home page
+      window.location.href = '/';
+    }
   };
 
   return (

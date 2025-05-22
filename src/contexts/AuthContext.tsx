@@ -173,11 +173,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       toast.success('Logged in successfully!');
 
-      // Add a small delay before redirecting to ensure state updates
-      setTimeout(() => {
-        console.log('Redirecting to dashboard...');
-        router.push('/dashboard');
-      }, 1000);
+      // Force a redirect to the dashboard to ensure the user is redirected
+      console.log('Redirecting to dashboard...');
+
+      // Use window.location for a hard redirect instead of router.push
+      // This ensures a full page reload and proper session recognition
+      window.location.href = '/dashboard';
     } catch (error: any) {
       console.error('Unexpected error during sign in:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -245,20 +246,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
-      const { error } = await signOut();
+      console.log('AuthContext: Handling sign out request');
 
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
+      // First, clear the local state
       setUser(null);
       setSession(null);
       setProfile(null);
+
+      // Then sign out from Supabase
+      const { error } = await signOut();
+
+      if (error) {
+        console.error('Error during sign out:', error);
+        toast.error(error.message || 'Failed to sign out. Please try again.');
+        return;
+      }
+
+      // Clear any additional auth-related items from localStorage
+      try {
+        localStorage.removeItem('supabase-auth-token');
+        localStorage.removeItem('supabase.auth.token');
+
+        // Clear any cookies related to authentication
+        document.cookie.split(';').forEach(cookie => {
+          const [name] = cookie.trim().split('=');
+          if (name.includes('supabase') || name.includes('auth')) {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+          }
+        });
+      } catch (e) {
+        console.error('Error clearing local storage or cookies:', e);
+      }
+
       toast.success('Logged out successfully!');
-      router.push('/');
+
+      // Force a page reload to ensure all auth state is cleared
+      window.location.href = '/';
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Unexpected error during sign out:', error);
       toast.error('Failed to sign out. Please try again.');
     } finally {
       setIsLoading(false);
