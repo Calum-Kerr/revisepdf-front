@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { FileUpload } from '@/components/pdf/FileUpload';
 import { Button } from '@/components/ui/Button';
 import { mergePDFs } from '@/lib/pdf/pdfUtils';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { updateUserStorageUsage } from '@/lib/supabase/client';
 
 export default function MergePDFsPage() {
+  const { user, profile } = useAuth();
   const [files, setFiles] = useState<File[]>([]);
   const [mergedFile, setMergedFile] = useState<Blob | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  const [storageUpdated, setStorageUpdated] = useState(false);
 
   const handleFilesAccepted = (acceptedFiles: File[]) => {
     setFiles(acceptedFiles);
@@ -25,12 +29,62 @@ export default function MergePDFsPage() {
 
     try {
       setIsMerging(true);
+      setStorageUpdated(false);
+
+      // Show a loading toast
+      toast.loading('Merging PDFs...', { id: 'merge-toast' });
+
+      console.log('Starting PDF merge process...');
       const merged = await mergePDFs(files);
+      console.log(`Merge complete. Result size: ${merged.size} bytes`);
+
       setMergedFile(merged);
+
+      // Update the user's storage usage
+      if (user) {
+        try {
+          console.log(`Updating storage usage for user ${user.id} with file size: ${merged.size} bytes`);
+          const updatedProfile = await updateUserStorageUsage(user.id, merged.size);
+
+          if (updatedProfile) {
+            console.log('Storage usage updated successfully:', updatedProfile);
+            setStorageUpdated(true);
+
+            // Update the profile in context
+            if (typeof window !== 'undefined') {
+              // Trigger a refresh of the auth context
+              const event = new CustomEvent('storage-usage-updated', {
+                detail: { profile: updatedProfile }
+              });
+              window.dispatchEvent(event);
+            }
+          } else {
+            console.warn('Failed to update storage usage');
+          }
+        } catch (storageError) {
+          console.error('Error updating storage usage:', storageError);
+          // Continue even if storage update fails
+        }
+      }
+
+      // Dismiss the loading toast
+      toast.dismiss('merge-toast');
       toast.success('PDFs merged successfully!');
     } catch (error) {
       console.error('Error merging PDFs:', error);
-      toast.error('Failed to merge PDFs. Please try again.');
+
+      // Dismiss the loading toast
+      toast.dismiss('merge-toast');
+
+      // Show a more detailed error message
+      let errorMessage = 'Failed to merge PDFs. Please try again.';
+
+      if (error instanceof Error) {
+        console.error(`Error details: ${error.message}`);
+        errorMessage = `Merge failed: ${error.message}`;
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsMerging(false);
     }
@@ -38,7 +92,7 @@ export default function MergePDFsPage() {
 
   const handleDownload = () => {
     if (!mergedFile) return;
-    
+
     const url = URL.createObjectURL(mergedFile);
     const a = document.createElement('a');
     a.href = url;
@@ -67,7 +121,7 @@ export default function MergePDFsPage() {
               Combine multiple PDF documents into a single file
             </p>
           </div>
-          
+
           <div className="mx-auto mt-16 max-w-2xl sm:mt-20">
             <div className="space-y-10">
               <div className="border-b border-gray-200 pb-10">
@@ -76,8 +130,8 @@ export default function MergePDFsPage() {
                   Select multiple PDF files from your device to merge
                 </p>
                 <div className="mt-6">
-                  <FileUpload 
-                    onFilesAccepted={handleFilesAccepted} 
+                  <FileUpload
+                    onFilesAccepted={handleFilesAccepted}
                     maxSize={100 * 1024 * 1024} // 100MB max for demo
                     maxFiles={10} // Allow up to 10 files
                     multiple={true}
@@ -90,7 +144,7 @@ export default function MergePDFsPage() {
                   </div>
                 )}
               </div>
-              
+
               {files.length > 0 && (
                 <div className="border-b border-gray-200 pb-10">
                   <h3 className="text-base font-semibold leading-7 text-gray-900">2. Merge your PDFs</h3>
@@ -98,8 +152,8 @@ export default function MergePDFsPage() {
                     Click the button below to merge your PDF files
                   </p>
                   <div className="mt-6">
-                    <Button 
-                      onClick={handleMerge} 
+                    <Button
+                      onClick={handleMerge}
                       isLoading={isMerging}
                       disabled={files.length < 2 || isMerging}
                       fullWidth
@@ -109,7 +163,7 @@ export default function MergePDFsPage() {
                   </div>
                 </div>
               )}
-              
+
               {mergedFile && (
                 <div>
                   <h3 className="text-base font-semibold leading-7 text-gray-900">3. Download merged PDF</h3>

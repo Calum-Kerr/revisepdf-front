@@ -85,6 +85,8 @@ export const updateUserProfile = async (
   userId: string,
   updates: Partial<UserProfile>
 ): Promise<UserProfile | null> => {
+  console.log(`Updating user profile for user ${userId} with:`, updates);
+
   const { data, error } = await supabase
     .from('profiles')
     .update(updates)
@@ -97,6 +99,7 @@ export const updateUserProfile = async (
     return null;
   }
 
+  console.log('User profile updated successfully:', data);
   return data as UserProfile;
 };
 
@@ -110,6 +113,50 @@ export const updateUserSubscription = async (
     subscription_tier: tier,
     file_size_limit: fileLimit,
   });
+};
+
+/**
+ * Updates the user's storage usage after processing a file
+ * @param userId The user ID
+ * @param fileSize The size of the processed file in bytes
+ * @returns The updated user profile or null if the update failed
+ */
+export const updateUserStorageUsage = async (
+  userId: string,
+  fileSize: number
+): Promise<UserProfile | null> => {
+  console.log(`Updating storage usage for user ${userId} with file size: ${fileSize} bytes`);
+
+  try {
+    // First, get the current user profile
+    const currentProfile = await getUserProfile(userId);
+
+    if (!currentProfile) {
+      console.error('Could not find user profile for storage update');
+      return null;
+    }
+
+    // Calculate new usage
+    // Note: In a real app, you might want to track individual files
+    // Here we're just incrementing the usage by the file size
+    const newUsage = currentProfile.usage + fileSize;
+
+    console.log(`Current usage: ${currentProfile.usage} bytes, New usage: ${newUsage} bytes`);
+
+    // Check if the new usage exceeds the limit
+    if (newUsage > currentProfile.file_size_limit) {
+      console.error('Storage limit exceeded');
+      throw new Error(`Storage limit exceeded. Current limit: ${currentProfile.file_size_limit} bytes`);
+    }
+
+    // Update the profile with the new usage
+    return updateUserProfile(userId, {
+      usage: newUsage,
+    });
+  } catch (error) {
+    console.error('Error updating user storage usage:', error);
+    return null;
+  }
 };
 
 // Authentication functions
@@ -267,20 +314,61 @@ export const resetPassword = async (email: string) => {
 };
 
 export const getCurrentUser = async () => {
-  const { data: { session }, error } = await supabase.auth.getSession();
+  console.log('Getting current user and profile...');
 
-  if (error || !session) {
-    return { user: null, session: null, error };
+  try {
+    // Get the current session
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error('Error getting session:', error);
+      return { user: null, session: null, error };
+    }
+
+    if (!session) {
+      console.log('No active session found');
+      return { user: null, session: null, error: null };
+    }
+
+    console.log('Active session found for user:', session.user.id);
+
+    // Get the user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error('Error getting user:', userError);
+      return { user: null, session: null, error: userError };
+    }
+
+    if (!user) {
+      console.log('No user found for session');
+      return { user: null, session: null, error: new Error('No user found for session') };
+    }
+
+    // Get the user profile directly from the database to ensure we have the latest data
+    console.log('Fetching profile for user:', user.id);
+    const { data, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      return { user, session, profile: null, error: profileError };
+    }
+
+    if (!data) {
+      console.log('No profile found for user:', user.id);
+      return { user, session, profile: null, error: new Error('No profile found') };
+    }
+
+    console.log('Profile fetched successfully:', data);
+    const profile = data as UserProfile;
+
+    return { user, session, profile, error: null };
+  } catch (error) {
+    console.error('Unexpected error in getCurrentUser:', error);
+    return { user: null, session: null, profile: null, error };
   }
-
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return { user: null, session: null, error: userError };
-  }
-
-  // Get the user profile
-  const profile = await getUserProfile(user.id);
-
-  return { user, session, profile, error: null };
 };

@@ -34,6 +34,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  // Function to fetch user profile
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      console.log('Fetching user profile for ID:', userId);
+      const { profile } = await getCurrentUser();
+
+      if (profile) {
+        console.log('User profile fetched successfully:', profile.id);
+        setProfile(profile);
+      } else {
+        console.warn('No profile found for user:', userId);
+        setProfile(null);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setProfile(null);
+    }
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -61,8 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser(refreshData.user);
 
             // Fetch the user profile
-            const { profile } = await getCurrentUser();
-            setProfile(profile || null);
+            await fetchUserProfile(refreshData.user.id);
 
             // Ensure the session is stored in localStorage
             localStorage.setItem('supabase-auth-token', JSON.stringify({
@@ -124,8 +142,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Set up listener for storage usage updates
+    const handleStorageUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && customEvent.detail.profile) {
+        console.log('Storage usage updated event received:', customEvent.detail.profile);
+        setProfile(customEvent.detail.profile);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage-usage-updated', handleStorageUpdate);
+    }
+
     return () => {
       authListener.subscription.unsubscribe();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage-usage-updated', handleStorageUpdate);
+      }
     };
   }, []);
 

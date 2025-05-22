@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { compressPDF } from '@/lib/pdf/pdfUtils';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase/client';
+import { supabase, updateUserStorageUsage } from '@/lib/supabase/client';
 import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 export default function CompressPDFPage() {
@@ -160,10 +160,30 @@ export default function CompressPDFPage() {
       setCompressedFile(compressed);
       setCompressedSize(compressed.size);
 
-      // Update usage on server (this would be implemented in a real app)
-      // In a production app, you would update the user's storage usage here
-      // For example:
-      // await updateUserStorageUsage(user.id, compressed.size);
+      // Update the user's storage usage
+      if (user) {
+        try {
+          console.log(`Updating storage usage for user ${user.id} with file size: ${compressed.size} bytes`);
+          const updatedProfile = await updateUserStorageUsage(user.id, compressed.size);
+
+          if (updatedProfile) {
+            console.log('Storage usage updated successfully:', updatedProfile);
+            // Update the profile in context
+            if (typeof window !== 'undefined') {
+              // Trigger a refresh of the auth context
+              const event = new CustomEvent('storage-usage-updated', {
+                detail: { profile: updatedProfile }
+              });
+              window.dispatchEvent(event);
+            }
+          } else {
+            console.warn('Failed to update storage usage');
+          }
+        } catch (storageError) {
+          console.error('Error updating storage usage:', storageError);
+          // Continue even if storage update fails
+        }
+      }
 
       // Dismiss the loading toast and show success
       toast.dismiss('compression-toast');
