@@ -51,43 +51,75 @@
     "subtitle": "Select the plan that fits your needs",
     "free": {
       "title": "Free",
-      "price": "£0",
+      "price": "$0",
       "description": "Basic PDF tools for occasional use",
       "features": [
-        "5MB file size limit",
-        "Basic compression",
-        "Basic merging",
-        "Basic splitting",
-        "Basic conversion"
+        "Up to 5 files per day",
+        "10MB maximum file size",
+        "Standard compression quality",
+        "No batch processing (one file at a time)"
       ]
     },
-    "basic": {
-      "title": "Basic",
-      "price": "£4.99",
-      "period": "per month",
-      "description": "Enhanced PDF tools for regular use",
+    "pay_per_use": {
+      "title": "Pay-Per-Use",
+      "price": "Variable",
+      "period": "pay as you go",
+      "description": "Perfect for occasional users",
       "features": [
-        "20MB file size limit",
-        "Advanced compression",
-        "Advanced merging",
-        "Advanced splitting",
-        "Advanced conversion",
-        "Batch processing"
+        "$0.10 per 10MB increment (25MB file = $0.30)",
+        "Cap at $2.00 per individual file (up to 200MB)",
+        "$0.05 per additional file in a batch",
+        "Cap at $1.00 for batches over 20 files",
+        "No monthly commitment"
       ]
     },
-    "premium": {
-      "title": "Premium",
-      "price": "£9.99",
+    "personal": {
+      "title": "Personal",
+      "price": "$3.99",
       "period": "per month",
-      "description": "Professional PDF tools for power users",
+      "description": "Essential PDF tools for regular use",
       "features": [
-        "100MB file size limit",
-        "Premium compression",
-        "Premium merging",
-        "Premium splitting",
-        "Premium conversion",
-        "Batch processing",
-        "Priority support"
+        "100 files per month",
+        "25MB maximum file size",
+        "Batch processing up to 10 files",
+        "Faster processing speed"
+      ]
+    },
+    "power_user": {
+      "title": "Power User",
+      "price": "$8.99",
+      "period": "per month",
+      "description": "Advanced PDF tools for power users",
+      "features": [
+        "500 files per month",
+        "100MB maximum file size",
+        "Batch processing up to 50 files",
+        "Advanced compression settings"
+      ]
+    },
+    "heavy_user": {
+      "title": "Heavy User",
+      "price": "$19.99",
+      "period": "per month",
+      "description": "Professional PDF tools for heavy users",
+      "features": [
+        "1,500 files per month",
+        "500MB maximum file size",
+        "Unlimited batch size",
+        "Premium compression algorithms"
+      ]
+    },
+    "unlimited": {
+      "title": "Unlimited Personal",
+      "price": "$49.99",
+      "period": "per month",
+      "description": "Unlimited PDF tools for power users",
+      "features": [
+        "Unlimited file uploads",
+        "Unlimited file sizes",
+        "Unlimited batch processing",
+        "All compression options",
+        "Priority processing"
       ]
     }
   },

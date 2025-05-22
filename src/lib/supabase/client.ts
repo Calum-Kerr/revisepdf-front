@@ -27,35 +27,120 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-export type SubscriptionTier = 'free' | 'basic' | 'premium';
+export type SubscriptionTier = 'free' | 'pay_per_use' | 'personal' | 'power_user' | 'heavy_user' | 'unlimited';
 
 export interface UserProfile {
-  id: string;
+  id: number;
   user_id: string;
-  full_name?: string;
+  email: string;
   subscription_tier: SubscriptionTier;
-  file_size_limit: number;
-  usage: number;
+  subscription_start_date: string;
+  subscription_end_date: string;
+  daily_files_used: number;
+  daily_files_limit: number;
+  monthly_files_used: number;
+  monthly_files_limit: number;
+  max_file_size_mb: number;
+  max_batch_size: number;
+  last_usage_reset_date: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface FileOperation {
+  id: number;
+  user_id: string;
+  operation_type: 'compress' | 'merge' | 'split' | 'convert';
+  file_size_bytes: number;
+  file_count: number;
+  input_filename?: string;
+  output_filename?: string;
+  success: boolean;
+  error_message?: string;
+  created_at: string;
+}
+
+export interface OperationValidationResult {
+  operation_id: number;
+  is_valid: boolean;
+  error_message: string | null;
+  cost_cents: number;
+}
+
+export interface UserStats {
+  subscription_tier: string;
+  daily_files_used: number;
+  daily_files_limit: number;
+  monthly_files_used: number;
+  monthly_files_limit: number;
+  max_file_size_mb: number;
+  max_batch_size: number;
+  total_operations: number;
+  total_processed_bytes: number;
+  subscription_end_date: string;
+  days_until_renewal: number;
 }
 
 export const getFileSizeLimit = (tier: SubscriptionTier): number => {
   switch (tier) {
     case 'free':
-      return 5 * 1024 * 1024; // 5MB
-    case 'basic':
-      return 20 * 1024 * 1024; // 20MB
-    case 'premium':
+      return 10 * 1024 * 1024; // 10MB
+    case 'pay_per_use':
+      return 200 * 1024 * 1024; // 200MB
+    case 'personal':
+      return 25 * 1024 * 1024; // 25MB
+    case 'power_user':
       return 100 * 1024 * 1024; // 100MB
+    case 'heavy_user':
+      return 500 * 1024 * 1024; // 500MB
+    case 'unlimited':
+      return 1024 * 1024 * 1024; // 1GB (effectively unlimited)
     default:
-      return 5 * 1024 * 1024; // Default to free tier
+      return 10 * 1024 * 1024; // Default to free tier
+  }
+};
+
+// Get max batch size based on subscription tier
+export const getMaxBatchSize = (tier: SubscriptionTier): number => {
+  switch (tier) {
+    case 'free':
+      return 1; // No batch processing
+    case 'pay_per_use':
+      return 20; // Up to 20 files
+    case 'personal':
+      return 10;
+    case 'power_user':
+      return 50;
+    case 'heavy_user':
+    case 'unlimited':
+      return 999; // Effectively unlimited
+    default:
+      return 1; // Default to free tier
+  }
+};
+
+export const getSubscriptionDisplayName = (tier: SubscriptionTier): string => {
+  switch (tier) {
+    case 'free':
+      return 'Free';
+    case 'pay_per_use':
+      return 'Pay-Per-Use';
+    case 'personal':
+      return 'Personal';
+    case 'power_user':
+      return 'Power User';
+    case 'heavy_user':
+      return 'Heavy User';
+    case 'unlimited':
+      return 'Unlimited Personal';
+    default:
+      return 'Unknown';
   }
 };
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .select('*')
     .eq('user_id', userId)
     .single();
@@ -73,12 +158,11 @@ export const createUserProfile = async (userId: string, email: string): Promise<
     user_id: userId,
     email,
     subscription_tier: 'free' as SubscriptionTier,
-    file_size_limit: getFileSizeLimit('free'),
-    usage: 0,
+    // The database trigger will set the appropriate limits based on the subscription tier
   };
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .insert([newProfile])
     .select()
     .single();
@@ -98,7 +182,7 @@ export const updateUserProfile = async (
   console.log(`Updating user profile for user ${userId} with:`, updates);
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('user_profiles')
     .update(updates)
     .eq('user_id', userId)
     .select()
@@ -117,15 +201,85 @@ export const updateUserSubscription = async (
   userId: string,
   tier: SubscriptionTier
 ): Promise<UserProfile | null> => {
-  const fileLimit = getFileSizeLimit(tier);
-
+  // The database trigger will automatically update the limits based on the tier
   return updateUserProfile(userId, {
     subscription_tier: tier,
-    file_size_limit: fileLimit,
+    subscription_start_date: new Date().toISOString(),
+    subscription_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
   });
 };
 
 /**
+ * Records a file operation and updates the user's usage statistics
+ * @param userId The user ID
+ * @param operationType The type of operation (compress, merge, split, convert)
+ * @param fileSize The size of the file in bytes
+ * @param fileCount The number of files in the operation (for batch processing)
+ * @param inputFilename Optional input filename
+ * @param outputFilename Optional output filename
+ * @returns The result of the operation validation
+ */
+export const recordFileOperation = async (
+  userId: string,
+  operationType: 'compress' | 'merge' | 'split' | 'convert',
+  fileSize: number,
+  fileCount: number = 1,
+  inputFilename?: string,
+  outputFilename?: string
+): Promise<OperationValidationResult | null> => {
+  console.log(`Recording file operation for user ${userId}: ${operationType}, size: ${fileSize} bytes, count: ${fileCount}`);
+
+  try {
+    // Call the database function to record the operation
+    const { data, error } = await supabase.rpc('record_file_operation', {
+      p_user_id: userId,
+      p_operation_type: operationType,
+      p_file_size_bytes: fileSize,
+      p_file_count: fileCount,
+      p_input_filename: inputFilename,
+      p_output_filename: outputFilename
+    });
+
+    if (error) {
+      console.error('Error recording file operation:', error);
+      return null;
+    }
+
+    console.log('File operation recorded successfully:', data);
+    return data as OperationValidationResult;
+  } catch (error) {
+    console.error('Error recording file operation:', error);
+    return null;
+  }
+};
+
+/**
+ * Gets the user's current statistics including usage and limits
+ * @param userId The user ID
+ * @returns The user's statistics
+ */
+export const getUserStats = async (userId: string): Promise<UserStats | null> => {
+  try {
+    const { data, error } = await supabase.rpc('get_user_stats', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      console.error('Error getting user stats:', error);
+      return null;
+    }
+
+    console.log('User stats retrieved successfully:', data);
+    return data as UserStats;
+  } catch (error) {
+    console.error('Error getting user stats:', error);
+    return null;
+  }
+};
+
+/**
+ * DEPRECATED: Use recordFileOperation instead
+ * This function is kept for backward compatibility
  * Updates the user's storage usage after processing a file
  * @param userId The user ID
  * @param fileSize The size of the processed file in bytes
@@ -135,68 +289,18 @@ export const updateUserStorageUsage = async (
   userId: string,
   fileSize: number
 ): Promise<UserProfile | null> => {
-  console.log(`Updating storage usage for user ${userId} with file size: ${fileSize} bytes`);
+  console.log('DEPRECATED: Using updateUserStorageUsage. Please update to use recordFileOperation instead.');
 
-  try {
-    // Force a direct database query with cache busting to get the most current profile
-    const timestamp = Date.now();
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-      .abortSignal(new AbortController().signal); // This helps avoid using cached results
+  // Call the new function with default values
+  const result = await recordFileOperation(userId, 'compress', fileSize);
 
-    if (error) {
-      console.error('Error fetching current profile for storage update:', error);
-      return null;
-    }
-
-    if (!data) {
-      console.error('Could not find user profile for storage update');
-      return null;
-    }
-
-    const currentProfile = data as UserProfile;
-
-    // Calculate new usage
-    // Note: In a real app, you might want to track individual files
-    // Here we're just incrementing the usage by the file size
-    const newUsage = currentProfile.usage + fileSize;
-
-    console.log(`Current usage: ${currentProfile.usage} bytes, New usage: ${newUsage} bytes`);
-    console.log(`Profile query executed at ${new Date(timestamp).toISOString()}`);
-
-    // Check if the new usage exceeds the limit
-    if (newUsage > currentProfile.file_size_limit) {
-      console.error('Storage limit exceeded');
-      throw new Error(`Storage limit exceeded. Current limit: ${currentProfile.file_size_limit} bytes`);
-    }
-
-    // Update the profile with the new usage - use a direct update with cache control
-    const { data: updatedData, error: updateError } = await supabase
-      .from('profiles')
-      .update({ usage: newUsage, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Error updating profile with new storage usage:', updateError);
-      return null;
-    }
-
-    if (!updatedData) {
-      console.error('No data returned after updating profile');
-      return null;
-    }
-
-    console.log('Storage usage updated successfully:', updatedData);
-    return updatedData as UserProfile;
-  } catch (error) {
-    console.error('Error updating user storage usage:', error);
+  if (!result || !result.is_valid) {
+    console.error('Operation validation failed:', result?.error_message);
     return null;
   }
+
+  // Get the updated profile
+  return getUserProfile(userId);
 };
 
 // Authentication functions
@@ -385,6 +489,102 @@ export const resetPassword = async (email: string) => {
   }
 };
 
+// Record a file operation and update user storage usage
+export const recordFileOperation = async (
+  userId: string,
+  operationType: 'compress' | 'merge' | 'split' | 'convert',
+  fileSize: number,
+  fileCount: number = 1,
+  inputFilename?: string,
+  outputFilename?: string
+): Promise<{
+  operation_id: number;
+  is_valid: boolean;
+  error_message?: string;
+  cost_cents: number;
+} | null> => {
+  try {
+    console.log(`Recording ${operationType} operation for user ${userId} with file size: ${fileSize} bytes, file count: ${fileCount}`);
+
+    // Call the record_file_operation function
+    const { data, error } = await supabase.rpc('record_file_operation', {
+      p_user_id: userId,
+      p_operation_type: operationType,
+      p_file_size_bytes: fileSize,
+      p_file_count: fileCount,
+      p_input_filename: inputFilename || null,
+      p_output_filename: outputFilename || null
+    });
+
+    if (error) {
+      console.error('Error recording file operation:', error);
+      return null;
+    }
+
+    console.log('Operation recorded successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in recordFileOperation:', error);
+    return null;
+  }
+};
+
+// Get user statistics
+export const getUserStats = async (userId: string): Promise<any | null> => {
+  try {
+    console.log(`Getting stats for user ${userId}`);
+
+    // Call the get_user_stats function
+    const { data, error } = await supabase.rpc('get_user_stats', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      console.error('Error getting user stats:', error);
+      return null;
+    }
+
+    console.log('User stats retrieved successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getUserStats:', error);
+    return null;
+  }
+};
+
+// DEPRECATED: Update user storage usage - now calls recordFileOperation
+export const updateUserStorageUsage = async (userId: string, fileSize: number): Promise<UserProfile | null> => {
+  try {
+    console.log(`DEPRECATED: Updating storage usage for user ${userId} with file size: ${fileSize} bytes`);
+    console.log('This function is deprecated. Using recordFileOperation instead.');
+
+    // Call the new function instead
+    const result = await recordFileOperation(userId, 'compress', fileSize);
+
+    if (!result) {
+      console.error('Error recording file operation');
+      return null;
+    }
+
+    // Get the updated profile to return for backward compatibility
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching updated profile:', profileError);
+      return null;
+    }
+
+    return profile as UserProfile;
+  } catch (error) {
+    console.error('Error in updateUserStorageUsage:', error);
+    return null;
+  }
+};
+
 export const getCurrentUser = async () => {
   console.log('Getting current user and profile...');
 
@@ -419,11 +619,31 @@ export const getCurrentUser = async () => {
 
     // Get the user profile directly from the database to ensure we have the latest data
     console.log('Fetching profile for user:', user.id);
-    const { data, error: profileError } = await supabase
-      .from('profiles')
+
+    // First try the user_profiles table (new schema)
+    let { data, error: profileError } = await supabase
+      .from('user_profiles')
       .select('*')
       .eq('user_id', user.id)
       .single();
+
+    if (profileError) {
+      console.log('No profile found in user_profiles, trying profiles table (legacy)');
+      // Fall back to the profiles table (old schema)
+      const { data: legacyData, error: legacyError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (legacyError) {
+        console.error('Error fetching profile from both tables:', profileError, legacyError);
+        return { user, session, profile: null, error: profileError };
+      }
+
+      data = legacyData;
+      profileError = null;
+    }
 
     if (profileError) {
       console.error('Error fetching profile:', profileError);

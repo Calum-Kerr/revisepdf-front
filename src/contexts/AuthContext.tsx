@@ -218,12 +218,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Set up listener for storage usage updates
+    // Set up listener for storage usage updates and operation recording
     const handleStorageUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
+
+      // Handle legacy storage-usage-updated event
       if (customEvent.detail && customEvent.detail.profile) {
-        console.log('Storage usage updated event received:', customEvent.detail.profile);
+        console.log('Storage usage updated event received (legacy format):', customEvent.detail.profile);
         setProfile(customEvent.detail.profile);
+      }
+
+      // Handle new operation-recorded event
+      if (customEvent.detail && customEvent.detail.operationResult) {
+        console.log('Operation recorded event received:', customEvent.detail.operationResult);
+
+        // Refresh the user profile to get the latest usage stats
+        if (user) {
+          fetchUserProfile(user.id);
+        }
       }
     };
 
@@ -262,6 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (typeof window !== 'undefined') {
       window.addEventListener('storage-usage-updated', handleStorageUpdate);
+      window.addEventListener('operation-recorded', handleStorageUpdate);
       document.addEventListener('visibilitychange', handleVisibilityChange);
     }
 
@@ -269,6 +282,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       authListener.subscription.unsubscribe();
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage-usage-updated', handleStorageUpdate);
+        window.removeEventListener('operation-recorded', handleStorageUpdate);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
     };

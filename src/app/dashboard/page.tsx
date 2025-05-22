@@ -19,7 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/contexts/AuthContext';
 import toast from 'react-hot-toast';
-import { supabase } from '@/lib/supabase/client';
+import { supabase, getUserStats, getSubscriptionDisplayName } from '@/lib/supabase/client';
 
 // Define types for better type safety
 
@@ -29,6 +29,12 @@ interface UserData {
   plan: string;
   usedStorage: number; // MB
   totalStorage: number; // MB
+  dailyFilesUsed: number;
+  dailyFilesLimit: number;
+  monthlyFilesUsed: number;
+  monthlyFilesLimit: number;
+  maxBatchSize: number;
+  daysUntilRenewal: number;
 }
 
 // Default user data
@@ -37,7 +43,13 @@ const defaultUserData: UserData = {
   email: '',
   plan: 'Free',
   usedStorage: 0,
-  totalStorage: 5,
+  totalStorage: 10, // 10MB for free tier
+  dailyFilesUsed: 0,
+  dailyFilesLimit: 5,
+  monthlyFilesUsed: 0,
+  monthlyFilesLimit: 0, // Free tier uses daily limits
+  maxBatchSize: 1,
+  daysUntilRenewal: 0,
 };
 
 // PDF tool definitions
@@ -121,49 +133,41 @@ export default function DashboardPage() {
 
       console.log('Basic user data set');
 
-      // Always try to fetch the latest profile data directly from Supabase
+      // Get the user's stats from Supabase
       try {
-        console.log('Fetching user profile directly for user ID:', currentUser.id);
+        console.log('Fetching user stats for user ID:', currentUser.id);
 
-        // Force a cache-busting query parameter to ensure we get fresh data
-        const timestamp = Date.now();
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', currentUser.id)
-          .single()
-          .abortSignal(new AbortController().signal); // This helps avoid using cached results
+        const userStats = await getUserStats(currentUser.id);
 
-        console.log(`Profile query executed at ${new Date(timestamp).toISOString()}`);
+        if (userStats) {
+          console.log('User stats fetched successfully:', userStats);
 
-        if (error) {
-          console.error('Error fetching profile from database:', error);
-          // If we can't fetch the profile, use the one from context if available
+          // Convert bytes to MB for display
+          const totalProcessedMB = userStats.total_processed_bytes / (1024 * 1024);
+          console.log(`Total processed: ${totalProcessedMB.toFixed(2)} MB`);
+
+          // Update the user data with the stats
+          updatedUserData.plan = getSubscriptionDisplayName(userStats.subscription_tier as any);
+          updatedUserData.usedStorage = totalProcessedMB;
+          updatedUserData.totalStorage = userStats.max_file_size_mb;
+          updatedUserData.dailyFilesUsed = userStats.daily_files_used;
+          updatedUserData.dailyFilesLimit = userStats.daily_files_limit;
+          updatedUserData.monthlyFilesUsed = userStats.monthly_files_used;
+          updatedUserData.monthlyFilesLimit = userStats.monthly_files_limit;
+          updatedUserData.maxBatchSize = userStats.max_batch_size;
+          updatedUserData.daysUntilRenewal = userStats.days_until_renewal;
+        } else {
+          console.log('No user stats found, using defaults');
+
+          // If we can't fetch the stats, use the profile from context if available
           if (profile) {
             console.log('Using profile from context instead');
-            const userProfile = profile;
-            updatedUserData.plan = userProfile.subscription_tier?.charAt(0).toUpperCase() +
-                                  userProfile.subscription_tier?.slice(1) || 'Free';
-            updatedUserData.usedStorage = userProfile.usage ? userProfile.usage / (1024 * 1024) : 0;
-            updatedUserData.totalStorage = userProfile.file_size_limit ?
-                                         userProfile.file_size_limit / (1024 * 1024) : 5;
+            updatedUserData.plan = getSubscriptionDisplayName(profile.subscription_tier);
           }
-        } else if (data) {
-          console.log('Profile fetched successfully:', data);
-          console.log(`Current storage usage: ${data.usage} bytes (${data.usage / (1024 * 1024)} MB)`);
-
-          // Use the fetched profile data
-          updatedUserData.plan = data.subscription_tier?.charAt(0).toUpperCase() +
-                                data.subscription_tier?.slice(1) || 'Free';
-          updatedUserData.usedStorage = data.usage ? data.usage / (1024 * 1024) : 0; // Convert bytes to MB
-          updatedUserData.totalStorage = data.file_size_limit ?
-                                       data.file_size_limit / (1024 * 1024) : 5; // Convert bytes to MB
-        } else {
-          console.log('No profile data found, using defaults');
         }
-      } catch (profileError) {
-        console.error('Exception fetching profile:', profileError);
-        // Continue with default values if profile fetch fails
+      } catch (statsError) {
+        console.error('Exception fetching user stats:', statsError);
+        // Continue with default values if stats fetch fails
       }
 
       console.log('Setting user data and success state');
@@ -182,25 +186,21 @@ export default function DashboardPage() {
     const refreshDashboardData = (event: Event) => {
       console.log('Storage usage update detected, refreshing dashboard data');
 
-      // Check if we have profile data in the event
+      // Check if we have operation result data in the event
       const customEvent = event as CustomEvent;
-      if (customEvent.detail && customEvent.detail.profile) {
-        console.log('Received updated profile in event:', customEvent.detail.profile);
+      if (customEvent.detail && customEvent.detail.operationResult) {
+        console.log('Received operation result in event:', customEvent.detail.operationResult);
 
-        // Update the user data directly from the event data
-        const profile = customEvent.detail.profile;
-        setUserData(prevData => ({
-          ...prevData,
-          plan: profile.subscription_tier?.charAt(0).toUpperCase() +
-                profile.subscription_tier?.slice(1) || 'Free',
-          usedStorage: profile.usage ? profile.usage / (1024 * 1024) : 0, // Convert bytes to MB
-          totalStorage: profile.file_size_limit ?
-                      profile.file_size_limit / (1024 * 1024) : 5, // Convert bytes to MB
-        }));
+        // Fetch the latest data to get updated stats
+        fetchUserData();
+      } else if (customEvent.detail && customEvent.detail.profile) {
+        console.log('Received updated profile in event (legacy format):', customEvent.detail.profile);
 
-        setLoadingState('success');
+        // For backward compatibility, still handle the old event format
+        // but fetch fresh data to ensure we have all the new stats
+        fetchUserData();
       } else {
-        // If no profile in event, fetch the data
+        // If no data in event, fetch the data
         fetchUserData();
       }
     };
@@ -219,6 +219,7 @@ export default function DashboardPage() {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('storage-usage-updated', refreshDashboardData);
+      window.addEventListener('operation-recorded', refreshDashboardData); // New event name
       window.addEventListener('storage', handleStorageChange);
 
       // Check for storage update flag on mount
@@ -228,6 +229,7 @@ export default function DashboardPage() {
     return () => {
       if (typeof window !== 'undefined') {
         window.removeEventListener('storage-usage-updated', refreshDashboardData);
+        window.removeEventListener('operation-recorded', refreshDashboardData); // New event name
         window.removeEventListener('storage', handleStorageChange);
       }
     };
@@ -433,18 +435,59 @@ export default function DashboardPage() {
                 <div className="ml-4">
                   <h2 className="text-lg font-medium text-gray-900">Current Plan: {userData.plan}</h2>
                   <p className="text-sm text-gray-500">
-                    {userData.usedStorage.toFixed(1)}MB / {userData.totalStorage}MB used
+                    Max file size: {userData.totalStorage}MB
                   </p>
                 </div>
               </div>
+
+              {/* File usage limits */}
               <div className="mt-4">
-                <div className="h-2 w-full rounded-full bg-gray-200">
-                  <div
-                    className="h-2 rounded-full bg-primary-500"
-                    style={{ width: `${Math.min((userData.usedStorage / userData.totalStorage) * 100, 100)}%` }}
-                  ></div>
-                </div>
+                <h3 className="text-sm font-medium text-gray-700">File Usage</h3>
+                {userData.plan === 'Free' && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Daily: {userData.dailyFilesUsed} / {userData.dailyFilesLimit} files</p>
+                    <div className="mt-1 h-2 w-full rounded-full bg-gray-200">
+                      <div
+                        className="h-2 rounded-full bg-primary-500"
+                        style={{ width: `${Math.min((userData.dailyFilesUsed / userData.dailyFilesLimit) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {(userData.plan === 'Personal' || userData.plan === 'Power User' || userData.plan === 'Heavy User') && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Monthly: {userData.monthlyFilesUsed} / {userData.monthlyFilesLimit} files</p>
+                    <div className="mt-1 h-2 w-full rounded-full bg-gray-200">
+                      <div
+                        className="h-2 rounded-full bg-primary-500"
+                        style={{ width: `${Math.min((userData.monthlyFilesUsed / userData.monthlyFilesLimit) * 100, 100)}%` }}
+                      ></div>
+                    </div>
+                    {userData.daysUntilRenewal > 0 && (
+                      <p className="mt-1 text-xs text-gray-500">Renews in {userData.daysUntilRenewal} days</p>
+                    )}
+                  </div>
+                )}
+
+                {userData.plan === 'Pay-Per-Use' && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Pay only for what you use</p>
+                    <p className="text-xs text-gray-500">$0.10 per 10MB, $0.05 per additional file in batch</p>
+                  </div>
+                )}
+
+                {userData.plan === 'Unlimited Personal' && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500">Unlimited usage</p>
+                  </div>
+                )}
+
+                {userData.maxBatchSize > 1 && (
+                  <p className="mt-2 text-xs text-gray-500">Batch processing: Up to {userData.maxBatchSize} files</p>
+                )}
               </div>
+
               <div className="mt-4">
                 <Link href="/pricing">
                   <Button variant="primary" size="sm">

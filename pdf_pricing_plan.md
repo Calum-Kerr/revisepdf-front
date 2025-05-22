@@ -32,27 +32,24 @@
 - Up to 100MB per file
 - Batch processing up to 50 files
 - Advanced compression settings
-- Download history saved for 30 days
 
 **Heavy User Plan - $19.99/month**
 - 1,500 files per month
 - Up to 500MB per file
 - Unlimited batch size
 - Premium compression algorithms
-- Download history saved for 90 days
 
 ## **Unlimited Personal - $49.99/month**
 - Unlimited file uploads
 - Unlimited file sizes
 - Unlimited batch processing
 - All compression options
-- Permanent download history
 - Priority processing
 
 ## **What Makes This Fair for Individual Users:**
 
 1. **Lower pricing** - Removed business features, reduced costs across all tiers
-2. **Personal-focused features** - Download history, personal file limits, individual use cases
+2. **Personal-focused features** - personal file limits, individual use cases
 3. **Reasonable progression** - Clear upgrade path as personal usage grows
 4. **No corporate bloat** - Just the features individuals actually need
 5. **Still great value** - Heavy personal users save significantly vs pay-per-use

@@ -21,22 +21,52 @@ export default function PricingPage() {
       mostPopular: false,
     },
     {
-      name: t('pricing.basic.title'),
-      id: 'basic',
-      price: t('pricing.basic.price'),
-      period: t('pricing.basic.period'),
-      description: t('pricing.basic.description'),
-      features: t('pricing.basic.features', { returnObjects: true }) as string[],
+      name: t('pricing.pay_per_use.title'),
+      id: 'pay_per_use',
+      price: t('pricing.pay_per_use.price'),
+      period: t('pricing.pay_per_use.period'),
+      description: t('pricing.pay_per_use.description'),
+      features: t('pricing.pay_per_use.features', { returnObjects: true }) as string[],
+      cta: t('navigation.signup'),
+      mostPopular: false,
+    },
+    {
+      name: t('pricing.personal.title'),
+      id: 'personal',
+      price: t('pricing.personal.price'),
+      period: t('pricing.personal.period'),
+      description: t('pricing.personal.description'),
+      features: t('pricing.personal.features', { returnObjects: true }) as string[],
       cta: t('navigation.signup'),
       mostPopular: true,
     },
     {
-      name: t('pricing.premium.title'),
-      id: 'premium',
-      price: t('pricing.premium.price'),
-      period: t('pricing.premium.period'),
-      description: t('pricing.premium.description'),
-      features: t('pricing.premium.features', { returnObjects: true }) as string[],
+      name: t('pricing.power_user.title'),
+      id: 'power_user',
+      price: t('pricing.power_user.price'),
+      period: t('pricing.power_user.period'),
+      description: t('pricing.power_user.description'),
+      features: t('pricing.power_user.features', { returnObjects: true }) as string[],
+      cta: t('navigation.signup'),
+      mostPopular: false,
+    },
+    {
+      name: t('pricing.heavy_user.title'),
+      id: 'heavy_user',
+      price: t('pricing.heavy_user.price'),
+      period: t('pricing.heavy_user.period'),
+      description: t('pricing.heavy_user.description'),
+      features: t('pricing.heavy_user.features', { returnObjects: true }) as string[],
+      cta: t('navigation.signup'),
+      mostPopular: false,
+    },
+    {
+      name: t('pricing.unlimited.title'),
+      id: 'unlimited',
+      price: t('pricing.unlimited.price'),
+      period: t('pricing.unlimited.period'),
+      description: t('pricing.unlimited.description'),
+      features: t('pricing.unlimited.features', { returnObjects: true }) as string[],
       cta: t('navigation.signup'),
       mostPopular: false,
     },
@@ -55,7 +85,7 @@ export default function PricingPage() {
           <p className="mx-auto mt-6 max-w-2xl text-center text-lg leading-8 text-gray-600">
             Choose the perfect plan for your PDF needs. Upgrade or downgrade at any time.
           </p>
-          <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-8 lg:mx-0 lg:max-w-none lg:grid-cols-3">
+          <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-8 lg:mx-0 lg:max-w-none lg:grid-cols-3 xl:grid-cols-6">
             {tiers.map((tier) => (
               <div
                 key={tier.id}

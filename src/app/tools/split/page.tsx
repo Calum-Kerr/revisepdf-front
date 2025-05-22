@@ -1,20 +1,101 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { FileUpload } from '@/components/pdf/FileUpload';
 import { Button } from '@/components/ui/Button';
 import { splitPDF, extractPages } from '@/lib/pdf/pdfUtils';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase, recordFileOperation } from '@/lib/supabase/client';
+import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 type SplitMode = 'range' | 'extract';
 
 export default function SplitPDFPage() {
+  const router = useRouter();
+  const { user, profile, session, isLoading } = useAuth();
+
   const [file, setFile] = useState<File | null>(null);
   const [splitMode, setSplitMode] = useState<SplitMode>('range');
   const [splitFiles, setSplitFiles] = useState<Blob[]>([]);
   const [isSplitting, setIsSplitting] = useState(false);
   const [pageCount, setPageCount] = useState<number>(0);
+
+  // Authentication states
+  const [authState, setAuthState] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+  const [showFallbackContent, setShowFallbackContent] = useState(false);
+
+  // File size error state
+  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
+  // Check authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // If still loading auth state, wait
+        if (isLoading) {
+          console.log('Auth context still loading, waiting...');
+          return;
+        }
+
+        // First check if we have a user in the auth context
+        if (user && session) {
+          console.log('User found in auth context:', user.id);
+          setAuthState('authenticated');
+          return;
+        }
+
+        // If not in context, direct check with Supabase to ensure we have a valid session
+        console.log('No user in context, checking with Supabase directly');
+        const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+
+        if (supabaseSession) {
+          console.log('Valid session found for split tool:', supabaseSession.user.id);
+
+          // Try to refresh the session to ensure it's valid
+          try {
+            const { data } = await supabase.auth.refreshSession();
+            if (data.session) {
+              console.log('Session refreshed successfully');
+              setAuthState('authenticated');
+
+              // Force a refresh of the auth context
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('visibilitychange'));
+              }
+              return;
+            }
+          } catch (refreshError) {
+            console.error('Error refreshing session:', refreshError);
+          }
+
+          // Even if refresh fails, if we have a session, consider authenticated
+          setAuthState('authenticated');
+        } else {
+          console.log('No valid session found for split tool');
+          setAuthState('unauthenticated');
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        setAuthState('unauthenticated');
+      }
+    };
+
+    checkAuth();
+
+    // Set a timeout to show content anyway after 5 seconds
+    const fallbackTimer = setTimeout(() => {
+      if (authState === 'loading') {
+        console.log('Auth check taking too long, showing fallback content');
+        setShowFallbackContent(true);
+      }
+    }, 5000);
+
+    return () => clearTimeout(fallbackTimer);
+  }, [isLoading, user, session, authState]);
 
   // For range splitting
   const [ranges, setRanges] = useState<{ start: number; end: number }[]>([{ start: 1, end: 1 }]);
@@ -142,43 +223,64 @@ export default function SplitPDFPage() {
         setSplitFiles(result);
       }
 
-      // Update the user's storage usage
+      // Record the file operation and update the user's storage usage
       if (user && result.length > 0) {
         try {
           // Calculate total size of all split files
           const totalSize = result.reduce((sum, file) => sum + file.size, 0);
-          console.log(`Updating storage usage for user ${user.id} with total file size: ${totalSize} bytes`);
+          console.log(`Recording split operation for user ${user.id} with total file size: ${totalSize} bytes`);
 
-          const updatedProfile = await updateUserStorageUsage(user.id, totalSize);
+          const operationResult = await recordFileOperation(
+            user.id,
+            'split',
+            totalSize,
+            result.length, // Number of files created
+            file.name,
+            splitMode === 'range' ? 'split_files.pdf' : 'extracted_pages.pdf'
+          );
 
-          if (updatedProfile) {
-            console.log('Storage usage updated successfully:', updatedProfile);
+          if (operationResult) {
+            if (operationResult.is_valid) {
+              console.log('Operation recorded successfully:', operationResult);
 
-            // Update the profile in context
-            if (typeof window !== 'undefined') {
-              // Trigger a refresh of the auth context
-              console.log('Dispatching storage-usage-updated event with profile:', updatedProfile);
+              // If it's a pay-per-use operation, show the cost
+              if (operationResult.cost_cents > 0) {
+                toast.success(`Operation cost: $${(operationResult.cost_cents / 100).toFixed(2)}`);
+              }
 
-              // Create a proper custom event with the updated profile
-              const event = new CustomEvent('storage-usage-updated', {
-                detail: { profile: updatedProfile }
-              });
+              // Update the UI by dispatching an event
+              if (typeof window !== 'undefined') {
+                // Create a custom event with the operation result
+                const event = new CustomEvent('operation-recorded', {
+                  detail: { operationResult }
+                });
 
-              // Dispatch the event
-              window.dispatchEvent(event);
+                // Dispatch the event
+                window.dispatchEvent(event);
 
-              // Also force a refresh of the auth context
-              window.dispatchEvent(new Event('visibilitychange'));
+                // Also dispatch the legacy event for backward compatibility
+                const legacyEvent = new CustomEvent('storage-usage-updated', {
+                  detail: { operationResult }
+                });
+                window.dispatchEvent(legacyEvent);
 
-              // Set a flag in localStorage to ensure the dashboard gets updated
-              localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+                // Also force a refresh of the auth context
+                window.dispatchEvent(new Event('visibilitychange'));
+
+                // Set a flag in localStorage to ensure the dashboard gets updated
+                localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+              }
+            } else {
+              // Operation was not valid (e.g., exceeded limits)
+              console.warn('Operation validation failed:', operationResult.error_message);
+              toast.error(operationResult.error_message || 'Failed to process file due to account limits');
             }
           } else {
-            console.warn('Failed to update storage usage');
+            console.warn('Failed to record operation');
           }
-        } catch (storageError) {
-          console.error('Error updating storage usage:', storageError);
-          // Continue even if storage update fails
+        } catch (operationError) {
+          console.error('Error recording operation:', operationError);
+          // Continue even if operation recording fails
         }
       }
 
@@ -219,6 +321,50 @@ export default function SplitPDFPage() {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
+  // Show loading state
+  if (authState === 'loading' && !showFallbackContent) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <ArrowPathIcon className="mx-auto h-12 w-12 animate-spin text-primary-500" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Loading PDF Split Tool...</h3>
+            <p className="mt-1 text-sm text-gray-500">Please wait while we verify your account.</p>
+            <button
+              onClick={() => setShowFallbackContent(true)}
+              className="mt-4 text-sm font-medium text-primary-600 hover:text-primary-500"
+            >
+              Continue anyway
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Show error state
+  if (authState === 'unauthenticated' && !showFallbackContent) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <ExclamationCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Authentication Required</h3>
+            <p className="mt-1 text-sm text-gray-500">Please log in to access the PDF split tool.</p>
+            <div className="mt-6">
+              <Button
+                onClick={() => router.push('/login?redirect=/tools/split')}
+                variant="primary"
+              >
+                Go to Login
+              </Button>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

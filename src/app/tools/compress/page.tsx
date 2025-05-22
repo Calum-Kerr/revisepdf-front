@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { compressPDF } from '@/lib/pdf/pdfUtils';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, updateUserStorageUsage } from '@/lib/supabase/client';
+import { supabase, recordFileOperation } from '@/lib/supabase/client';
 import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 export default function CompressPDFPage() {
@@ -133,12 +133,15 @@ export default function CompressPDFPage() {
 
     // Check file size against subscription limits
     if (profile) {
-      console.log(`Checking against subscription limits. User tier: ${profile.subscription_tier}, limit: ${formatFileSize(profile.file_size_limit)}`);
+      console.log(`Checking against subscription limits. User tier: ${profile.subscription_tier}`);
 
       // Check if file exceeds subscription tier limit
-      if (file.size > profile.file_size_limit) {
+      const maxFileSizeMB = profile.max_file_size_mb || 10; // Default to 10MB if not set
+      const maxFileSizeBytes = maxFileSizeMB * 1024 * 1024;
+
+      if (file.size > maxFileSizeBytes) {
         const tierName = profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1);
-        const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your ${tierName} plan limit of ${formatFileSize(profile.file_size_limit)}.`;
+        const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your ${tierName} plan limit of ${maxFileSizeMB}MB.`;
         console.error(errorMessage);
         toast.error(errorMessage);
         setFileSizeError(errorMessage);
@@ -146,17 +149,44 @@ export default function CompressPDFPage() {
         return;
       }
 
-      // Check if file exceeds remaining storage
-      if (file.size > (profile.file_size_limit - profile.usage)) {
-        const errorMessage = `File size (${formatFileSize(file.size)}) exceeds your remaining storage of ${formatFileSize(profile.file_size_limit - profile.usage)}.`;
-        console.error(errorMessage);
-        toast.error(errorMessage);
-        setFileSizeError(errorMessage);
-        setShowUpgradePrompt(true);
-        return;
+      // For pay-per-use tier, show estimated cost
+      if (profile.subscription_tier === 'pay_per_use') {
+        const fileSizeMB = file.size / (1024 * 1024);
+        const estimatedCost = Math.min(Math.ceil(fileSizeMB / 10) * 0.10, 2.00);
+        toast.info(`Estimated cost: $${estimatedCost.toFixed(2)}`);
       }
 
-      console.log('File size checks passed, proceeding with compression');
+      // For subscription tiers, check usage limits
+      if (['personal', 'power_user', 'heavy_user'].includes(profile.subscription_tier)) {
+        const monthlyLimit = profile.monthly_files_limit || 0;
+        const monthlyUsed = profile.monthly_files_used || 0;
+
+        if (monthlyLimit > 0 && monthlyUsed >= monthlyLimit) {
+          const errorMessage = `You have reached your monthly limit of ${monthlyLimit} files for your ${profile.subscription_tier} plan.`;
+          console.error(errorMessage);
+          toast.error(errorMessage);
+          setFileSizeError(errorMessage);
+          setShowUpgradePrompt(true);
+          return;
+        }
+      }
+
+      // For free tier, check daily limits
+      if (profile.subscription_tier === 'free') {
+        const dailyLimit = profile.daily_files_limit || 5;
+        const dailyUsed = profile.daily_files_used || 0;
+
+        if (dailyUsed >= dailyLimit) {
+          const errorMessage = `You have reached your daily limit of ${dailyLimit} files for the free plan.`;
+          console.error(errorMessage);
+          toast.error(errorMessage);
+          setFileSizeError(errorMessage);
+          setShowUpgradePrompt(true);
+          return;
+        }
+      }
+
+      console.log('File size and usage checks passed, proceeding with compression');
     }
 
     try {
@@ -187,39 +217,62 @@ export default function CompressPDFPage() {
       setCompressedFile(compressed);
       setCompressedSize(compressed.size);
 
-      // Update the user's storage usage
+      // Record the file operation and update the user's storage usage
       if (user) {
         try {
-          console.log(`Updating storage usage for user ${user.id} with file size: ${compressed.size} bytes`);
-          const updatedProfile = await updateUserStorageUsage(user.id, compressed.size);
+          console.log(`Recording compression operation for user ${user.id} with file size: ${compressed.size} bytes`);
 
-          if (updatedProfile) {
-            console.log('Storage usage updated successfully:', updatedProfile);
-            // Update the profile in context
-            if (typeof window !== 'undefined') {
-              // Trigger a refresh of the auth context
-              console.log('Dispatching storage-usage-updated event with profile:', updatedProfile);
+          const operationResult = await recordFileOperation(
+            user.id,
+            'compress',
+            compressed.size,
+            1, // Single file
+            file.name,
+            `compressed_${file.name}`
+          );
 
-              // Create a proper custom event with the updated profile
-              const event = new CustomEvent('storage-usage-updated', {
-                detail: { profile: updatedProfile }
-              });
+          if (operationResult) {
+            if (operationResult.is_valid) {
+              console.log('Operation recorded successfully:', operationResult);
 
-              // Dispatch the event
-              window.dispatchEvent(event);
+              // If it's a pay-per-use operation, show the cost
+              if (operationResult.cost_cents > 0) {
+                toast.success(`Operation cost: $${(operationResult.cost_cents / 100).toFixed(2)}`);
+              }
 
-              // Also force a refresh of the auth context
-              window.dispatchEvent(new Event('visibilitychange'));
+              // Update the UI by dispatching an event
+              if (typeof window !== 'undefined') {
+                // Create a custom event with the operation result
+                const event = new CustomEvent('operation-recorded', {
+                  detail: { operationResult }
+                });
 
-              // Set a flag in localStorage to ensure the dashboard gets updated
-              localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+                // Dispatch the event
+                window.dispatchEvent(event);
+
+                // Also dispatch the legacy event for backward compatibility
+                const legacyEvent = new CustomEvent('storage-usage-updated', {
+                  detail: { operationResult }
+                });
+                window.dispatchEvent(legacyEvent);
+
+                // Also force a refresh of the auth context
+                window.dispatchEvent(new Event('visibilitychange'));
+
+                // Set a flag in localStorage to ensure the dashboard gets updated
+                localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+              }
+            } else {
+              // Operation was not valid (e.g., exceeded limits)
+              console.warn('Operation validation failed:', operationResult.error_message);
+              toast.error(operationResult.error_message || 'Failed to process file due to account limits');
             }
           } else {
-            console.warn('Failed to update storage usage');
+            console.warn('Failed to record operation');
           }
-        } catch (storageError) {
-          console.error('Error updating storage usage:', storageError);
-          // Continue even if storage update fails
+        } catch (operationError) {
+          console.error('Error recording operation:', operationError);
+          // Continue even if operation recording fails
         }
       }
 

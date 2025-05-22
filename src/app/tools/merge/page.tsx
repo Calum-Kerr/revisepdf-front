@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { mergePDFs } from '@/lib/pdf/pdfUtils';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase, updateUserStorageUsage } from '@/lib/supabase/client';
+import { supabase, recordFileOperation } from '@/lib/supabase/client';
 import { ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 
 export default function MergePDFsPage() {
@@ -114,41 +114,57 @@ export default function MergePDFsPage() {
 
       setMergedFile(merged);
 
-      // Update the user's storage usage
+      // Record the file operation and update the user's storage usage
       if (user) {
         try {
-          console.log(`Updating storage usage for user ${user.id} with file size: ${merged.size} bytes`);
-          const updatedProfile = await updateUserStorageUsage(user.id, merged.size);
+          console.log(`Recording merge operation for user ${user.id} with file size: ${merged.size} bytes and ${files.length} files`);
 
-          if (updatedProfile) {
-            console.log('Storage usage updated successfully:', updatedProfile);
-            setStorageUpdated(true);
+          const operationResult = await recordFileOperation(
+            user.id,
+            'merge',
+            merged.size,
+            files.length,
+            files.map(f => f.name).join(', '),
+            'merged_document.pdf'
+          );
 
-            // Update the profile in context
-            if (typeof window !== 'undefined') {
-              // Trigger a refresh of the auth context
-              console.log('Dispatching storage-usage-updated event with profile:', updatedProfile);
+          if (operationResult) {
+            if (operationResult.is_valid) {
+              console.log('Operation recorded successfully:', operationResult);
+              setStorageUpdated(true);
 
-              // Create a proper custom event with the updated profile
-              const event = new CustomEvent('storage-usage-updated', {
-                detail: { profile: updatedProfile }
-              });
+              // If it's a pay-per-use operation, show the cost
+              if (operationResult.cost_cents > 0) {
+                toast.success(`Operation cost: $${(operationResult.cost_cents / 100).toFixed(2)}`);
+              }
 
-              // Dispatch the event
-              window.dispatchEvent(event);
+              // Update the UI by dispatching an event
+              if (typeof window !== 'undefined') {
+                // Create a custom event with the operation result
+                const event = new CustomEvent('operation-recorded', {
+                  detail: { operationResult }
+                });
 
-              // Also force a refresh of the auth context
-              window.dispatchEvent(new Event('visibilitychange'));
+                // Dispatch the event
+                window.dispatchEvent(event);
 
-              // Set a flag in localStorage to ensure the dashboard gets updated
-              localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+                // Also force a refresh of the auth context
+                window.dispatchEvent(new Event('visibilitychange'));
+
+                // Set a flag in localStorage to ensure the dashboard gets updated
+                localStorage.setItem('storage-usage-last-updated', Date.now().toString());
+              }
+            } else {
+              // Operation was not valid (e.g., exceeded limits)
+              console.warn('Operation validation failed:', operationResult.error_message);
+              toast.error(operationResult.error_message || 'Failed to process files due to account limits');
             }
           } else {
-            console.warn('Failed to update storage usage');
+            console.warn('Failed to record operation');
           }
-        } catch (storageError) {
-          console.error('Error updating storage usage:', storageError);
-          // Continue even if storage update fails
+        } catch (operationError) {
+          console.error('Error recording operation:', operationError);
+          // Continue even if operation recording fails
         }
       }
 
