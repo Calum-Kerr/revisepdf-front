@@ -61,7 +61,7 @@ export default function AboutPage() {
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-6xl">
               About RevisePDF
             </h1>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
+            <p className="mt-6 text-lg leading-8 text-gray-900">
               RevisePDF is a powerful online platform designed to help you manage and manipulate PDF documents with ease. Created by Calum, a student at Edinburgh Napier University, this suite of tools allows you to compress, merge, split, and convert PDFs, making document management simpler and more efficient.
             </p>
             <div className="mt-10 flex items-center gap-x-6">
@@ -87,7 +87,7 @@ export default function AboutPage() {
             <p className="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
               Everything you need to work with PDFs
             </p>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
+            <p className="mt-6 text-lg leading-8 text-gray-900">
               This comprehensive suite of PDF tools helps you handle all your document needs in one place, saving you time and effort.
             </p>
           </div>
@@ -101,7 +101,7 @@ export default function AboutPage() {
                     </div>
                     {feature.name}
                   </dt>
-                  <dd className="mt-2 text-base leading-7 text-gray-600">{feature.description}</dd>
+                  <dd className="mt-2 text-base leading-7 text-gray-900">{feature.description}</dd>
                 </div>
               ))}
             </dl>
@@ -114,27 +114,20 @@ export default function AboutPage() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:mx-0">
             <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">About the Developer</h2>
-            <p className="mt-6 text-lg leading-8 text-gray-600">
+            <p className="mt-6 text-lg leading-8 text-gray-900">
               RevisePDF is a solo project created by Calum, a student at Edinburgh Napier University based in Edinburgh, Scotland.
             </p>
           </div>
           <div className="mx-auto mt-20 max-w-2xl">
-            <div className="grid grid-cols-1 gap-x-8 gap-y-10 lg:grid-cols-2">
-              <div>
-                <img
-                  className="aspect-[3/2] w-full rounded-2xl object-cover"
-                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-                  alt="Calum Kerr"
-                />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold leading-8 tracking-tight text-gray-900">Calum Kerr</h3>
-                <p className="mt-2 text-base leading-7 text-gray-600">Student Developer</p>
-                <p className="mt-4 text-base leading-7 text-gray-600">
+            <div className="text-center">
+              <h3 className="text-2xl font-semibold leading-8 tracking-tight text-gray-900">Calum Kerr</h3>
+              <p className="mt-2 text-lg leading-7 text-gray-900">Student Developer</p>
+              <div className="mt-6 max-w-xl mx-auto">
+                <p className="text-base leading-7 text-gray-900">
                   I'm a student at Edinburgh Napier University with a passion for web development and creating useful tools.
                   RevisePDF started as a university project that I've continued to develop to help people work with PDF documents more efficiently.
                 </p>
-                <p className="mt-4 text-base leading-7 text-gray-600">
+                <p className="mt-4 text-base leading-7 text-gray-900">
                   If you have any questions, suggestions, or feedback about RevisePDF, feel free to reach out to me at calum@revisepdf.com.
                 </p>
               </div>
